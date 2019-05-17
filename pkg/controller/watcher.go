@@ -1,9 +1,8 @@
-package alertgenerator
+package controller
 
 import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"os"
 	"strings"
 	"time"
 
@@ -13,50 +12,15 @@ import (
 	coreInformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/box-autoremediation/pkg/controller/types"
 )
 
 //Struct for encapsulating generic Informer methods and Node informer
 type AlertGeneratorController struct {
 	informerFactory informers.SharedInformerFactory
 	nodeInformer    coreInformers.NodeInformer
-}
-
-//Defines format for alerts detected from NPD
-type Alert struct {
-	empty     bool
-	Timestamp time.Time
-	node      string
-	condition v1.NodeConditionType
-	action    string
-	params    string
-}
-
-/*Filters & prints based on :
-1. Nodes are Ready and Uncordon'd
-2. NPD conditions which are True
-*/
-func PrintAlert(n *v1.Node) {
-	a := n.Status.Conditions
-	x := new(Alert)
-	//ring_buf := []Alert{}
-	node_ready := false
-	for _, i := range a {
-		x.empty = true
-		if i.Type[:4] == "NPD-" && i.Status == "True" {
-			x.empty = false
-			x.Timestamp = i.LastHeartbeatTime.Time
-			x.node = n.Name
-			x.condition = i.Type
-			x.action = ""
-			x.params = i.Message
-		} else if i.Type == "Ready" && i.Status == "True" {
-			node_ready = true
-		}
-	}
-
-	if node_ready && !x.empty {
-		fmt.Println(x)
-	}
+	alertch         chan<- types.Alert
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -78,14 +42,32 @@ func (c *AlertGeneratorController) nodeAdd(obj interface{}) {
 
 func (c *AlertGeneratorController) nodeUpdate(old, new interface{}) {
 	oldNode := old.(*v1.Node)
+	var x types.Alert
+	//Check if node is cordon'd & has maintenance labels
 	if !oldNode.Spec.Unschedulable {
 		for k, _ := range oldNode.GetLabels() {
-			//fmt.Println(k)
 			if strings.Contains(k, "maintenance.box.com") {
 				goto Exit
 			}
 		}
-		PrintAlert(oldNode)
+		node_ready := false
+		for _, i := range oldNode.Status.Conditions {
+			x.Empty = true
+			if i.Type[:4] == "NPD-" && i.Status == "True" {
+				x.Empty = false
+				x.Timestamp = i.LastHeartbeatTime.Time
+				x.Node = oldNode.Name
+				x.Condition = i.Type
+				x.Action = ""
+				x.Params = i.Message
+			} else if i.Type == "Ready" && i.Status == "True" {
+				node_ready = true
+			}
+		}
+
+		if node_ready && !x.Empty {
+			c.alertch <- x
+		}
 	}
 Exit:
 }
@@ -96,12 +78,13 @@ func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 }
 
 // NewAlertGeneratorController creates a new AlertGeneratorController
-func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory) *AlertGeneratorController {
+func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, ch chan<- types.Alert) *AlertGeneratorController {
 	nodeInf := informerFactory.Core().V1().Nodes()
 
 	c := &AlertGeneratorController{
 		informerFactory: informerFactory,
 		nodeInformer:    nodeInf,
+		alertch:         ch,
 	}
 	nodeInf.Informer().AddEventHandler(
 		// Your custom resource event handlers.
@@ -117,22 +100,20 @@ func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory
 	return c
 }
 
-func Do(clientset *kubernetes.Clientset) {
+func Do(clientset *kubernetes.Clientset, ch chan<- types.Alert) {
 	//Get current directory
-	dir, _ := os.Getwd()
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 	//log.SetNoLock()
 	flog := log.WithFields(log.Fields{
-		"file": dir + "/main.go",
+		"file": "pkg/controller/watcher.go",
 	})
 
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, "", func(opt *metav1.ListOptions) { opt.LabelSelector = "box.com/pool in (generic, calico)" })
-	fmt.Println(factory)
-	controller := NewAlertGeneratorController(factory)
+	controller := NewAlertGeneratorController(factory, ch)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)
