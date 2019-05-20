@@ -1,22 +1,17 @@
 package controller
 
 import (
-	"fmt"
-	log "github.com/sirupsen/logrus"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/box-autoremediation/pkg/controller/types"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-func Update(client *kubernetes.Clientset, ch <-chan types.Alert) error {
-	flog := log.WithFields(log.Fields{
-		"file": "pkg/controller/update.go",
-	})
-	fmt.Println("update.go")
-	//buf := make(map[string]types.Alert)
+func Update(client *kubernetes.Clientset, interval float64, ch <-chan types.Alert) {
 	buf := make(map[string]string)
 	now := time.Now().UTC()
 	for {
@@ -24,11 +19,9 @@ func Update(client *kubernetes.Clientset, ch <-chan types.Alert) error {
 		// dedupe & update map after timeout
 		case r := <-ch:
 			buf[r.Node+"_"+string(r.Condition)] = r.Params
-			if time.Since(now).Seconds() > 10 {
+			if time.Since(now).Seconds() > interval {
 				now = time.Now().UTC()
-				fmt.Println(buf, len(buf))
-				fmt.Println()
-				//https://github.com/kubernetes/client-go/blob/master/examples/create-update-delete-deployment/main.go
+				log.Debug(buf, len(buf))
 				configmapClient := client.CoreV1().ConfigMaps("node-problem-detector")
 				//configmapClient.
 				cm := &v1.ConfigMap{
@@ -37,13 +30,12 @@ func Update(client *kubernetes.Clientset, ch <-chan types.Alert) error {
 					},
 					Data: buf,
 				}
-				_, err := configmapClient.Update(cm)
+				log.Info("Updating configmap in update.go")
+				result, err := configmapClient.Update(cm)
+				log.Debug("Created configmap ", result)
 				if err != nil {
-					flog.WithFields(log.Fields{
-						"function": "configmapClient.Update(cm)",
-					}).Fatal(err)
+					log.Fatal("Could not update configmap in update.go func Update() :", err)
 				}
-				//fmt.Println(result)
 				buf = make(map[string]string)
 
 			}

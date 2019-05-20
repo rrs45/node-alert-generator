@@ -2,11 +2,11 @@ package controller
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	log "github.com/sirupsen/logrus"
+
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	coreInformers "k8s.io/client-go/informers/core/v1"
@@ -21,6 +21,8 @@ type AlertGeneratorController struct {
 	informerFactory informers.SharedInformerFactory
 	nodeInformer    coreInformers.NodeInformer
 	alertch         chan<- types.Alert
+	labelch         chan<- *v1.Node
+	nolabel         bool
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -30,43 +32,59 @@ func (c *AlertGeneratorController) Run(stopCh chan struct{}) error {
 	c.informerFactory.Start(stopCh)
 	// wait for the initial synchronization of the local cache.
 	if !cache.WaitForCacheSync(stopCh, c.nodeInformer.Informer().HasSynced) {
-		return fmt.Errorf("Failed to sync")
+		return fmt.Errorf("Failed to sync informer cache")
 	}
 	return nil
 }
 
 func (c *AlertGeneratorController) nodeAdd(obj interface{}) {
 	node := obj.(*v1.Node)
-	log.Info("NODE CREATED: ", node.Name)
+	log.Infof("Received node add event for %s in watcher.go ", node.Name)
 }
 
-func (c *AlertGeneratorController) nodeUpdate(old, new interface{}) {
-	oldNode := old.(*v1.Node)
+func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
+	oldNode := oldN.(*v1.Node)
+	labeled := new(bool)
 	var x types.Alert
+	var buf []types.Alert
 	//Check if node is cordon'd & has maintenance labels
 	if !oldNode.Spec.Unschedulable {
-		for k, _ := range oldNode.GetLabels() {
-			if strings.Contains(k, "maintenance.box.com") {
-				goto Exit
+		for k, v := range oldNode.GetLabels() {
+			if k == "maintenance.box.com/source" {
+				//Exit if source is other than npd
+				if v != "npd" {
+					goto Exit
+				} else {
+					*labeled = true
+					break
+				}
 			}
 		}
+
 		node_ready := false
+		//log.Info("condition loop:")
 		for _, i := range oldNode.Status.Conditions {
-			x.Empty = true
+			//log.Info(i.Type, " ", i.Status, oldNode.Name)
 			if i.Type[:4] == "NPD-" && i.Status == "True" {
-				x.Empty = false
 				x.Timestamp = i.LastHeartbeatTime.Time
 				x.Node = oldNode.Name
 				x.Condition = i.Type
 				x.Action = ""
 				x.Params = i.Message
+				buf = append(buf, x)
 			} else if i.Type == "Ready" && i.Status == "True" {
 				node_ready = true
 			}
 		}
-
-		if node_ready && !x.Empty {
-			c.alertch <- x
+		//log.Info(buf)
+		if node_ready && buf != nil {
+			log.Debug("Received node update event for ", oldNode.Name, " in watcher.go ")
+			for _, a := range buf {
+				c.alertch <- a
+			}
+			if !*labeled && !c.nolabel {
+				c.labelch <- oldNode
+			}
 		}
 	}
 Exit:
@@ -74,17 +92,19 @@ Exit:
 
 func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 	node := obj.(*v1.Node)
-	log.Info("NODE DELETED: %s/%s", node.Namespace, node.Name)
+	log.Infof("Received node delete event for %s in watcher.go", node.Namespace)
 }
 
 // NewAlertGeneratorController creates a new AlertGeneratorController
-func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, ch chan<- types.Alert) *AlertGeneratorController {
+func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) *AlertGeneratorController {
 	nodeInf := informerFactory.Core().V1().Nodes()
 
 	c := &AlertGeneratorController{
 		informerFactory: informerFactory,
 		nodeInformer:    nodeInf,
-		alertch:         ch,
+		alertch:         alertch,
+		labelch:         labelch,
+		nolabel:         nolabel,
 	}
 	nodeInf.Informer().AddEventHandler(
 		// Your custom resource event handlers.
@@ -100,27 +120,22 @@ func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory
 	return c
 }
 
-func Do(clientset *kubernetes.Clientset, ch chan<- types.Alert) {
+func Do(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) {
 	//Get current directory
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 	//log.SetNoLock()
-	flog := log.WithFields(log.Fields{
-		"file": "pkg/controller/watcher.go",
-	})
-
+	log.Info("Creating informer factory for alert-generator from watcher.go")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, "", func(opt *metav1.ListOptions) { opt.LabelSelector = "box.com/pool in (generic, calico)" })
-	controller := NewAlertGeneratorController(factory, ch)
+	controller := NewAlertGeneratorController(factory, nolabel, alertch, labelch)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)
 	if err != nil {
-		flog.WithFields(log.Fields{
-			"function": "controller.Run(stop)",
-		}).Error(err)
+		log.Error("Could not run controller in watcher.go func DO() :", err)
 	}
 	select {}
 }

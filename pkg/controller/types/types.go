@@ -1,13 +1,13 @@
 package types
 
 import (
-	"k8s.io/api/core/v1"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 //Defines format for alerts detected from NPD
 type Alert struct {
-	Empty     bool
 	Timestamp time.Time
 	Node      string
 	Condition v1.NodeConditionType
