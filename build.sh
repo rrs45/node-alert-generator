@@ -2,12 +2,7 @@
 
 set -ex
 
-sudo yum install -y systemd-libs systemd-devel
-
 name=alert-generator
-tarname=$(find . -type f -iname "*.tar.gz" -printf "%f\n")
-
-
 godir=/tmp/go/src
 scratchdir=/tmp/scratch
 
