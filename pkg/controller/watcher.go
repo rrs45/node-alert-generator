@@ -39,7 +39,7 @@ func (c *AlertGeneratorController) Run(stopCh chan struct{}) error {
 
 func (c *AlertGeneratorController) nodeAdd(obj interface{}) {
 	node := obj.(*v1.Node)
-	log.Infof("Received node add event for %s in watcher.go ", node.Name)
+	log.Infof("Watcher - Received node add event for %s in watcher.go ", node.Name)
 }
 
 func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
@@ -78,7 +78,7 @@ func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
 		}
 		//log.Info(buf)
 		if node_ready && buf != nil {
-			log.Debug("Received node update event for ", oldNode.Name, " in watcher.go ")
+			log.Debug("Watcher - Found issue on ", oldNode.Name, " in watcher.go")
 			for _, a := range buf {
 				c.alertch <- a
 			}
@@ -92,7 +92,7 @@ Exit:
 
 func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 	node := obj.(*v1.Node)
-	log.Infof("Received node delete event for %s in watcher.go", node.Namespace)
+	log.Infof("Watcher - Received node delete event for %s in watcher.go", node.Namespace)
 }
 
 // NewAlertGeneratorController creates a new AlertGeneratorController
@@ -127,7 +127,7 @@ func Do(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.Aler
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
 	//log.SetNoLock()
-	log.Info("Creating informer factory for alert-generator from watcher.go")
+	log.Info("Watcher - Creating informer factory for alert-generator ")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, "", func(opt *metav1.ListOptions) { opt.LabelSelector = "box.com/pool in (generic, calico)" })
 	controller := NewAlertGeneratorController(factory, nolabel, alertch, labelch)
@@ -135,7 +135,7 @@ func Do(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.Aler
 	defer close(stop)
 	err := controller.Run(stop)
 	if err != nil {
-		log.Error("Could not run controller in watcher.go func DO() :", err)
+		log.Error("Watcher - Could not run controller :", err)
 	}
 	select {}
 }

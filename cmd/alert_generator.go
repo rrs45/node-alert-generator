@@ -47,9 +47,6 @@ func main() {
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
-	/*flog := log.WithFields(log.Fields{
-		"file": "cmd/alert_generator.go",
-	}) */
 	ago := options.NewAlertGeneratorOptions()
 	ago.AddFlags(flag.CommandLine)
 	flag.Parse()
@@ -73,26 +70,30 @@ func main() {
 	alertch := make(chan types.Alert)
 	labelch := make(chan *v1.Node)
 
-	//GOroutine to run the controller
-	log.Info("Starting controller for alert-generator")
 	go func() {
+		log.Info("Starting controller for alert-generator")
 		controller.Do(clientset, ago.NoLabel, alertch, labelch)
-		log.Info("Controller stopped for alert-generator")
+		log.Info("Stopping controller for alert-generator")
 		wg.Done()
 	}()
 
-	log.Info("Starting labeller for alert-generator")
-	go controller.LabelNode(clientset, &wg, labelch)
-
-	log.Info("Starting updater for alert-generator")
 	go func() {
+		log.Info("Starting labeller for alert-generator")
+		controller.LabelNode(clientset, labelch)
+		log.Info("Stopping labeller for alert-generator")
+		wg.Done()
+	}()
+
+	go func() {
+		log.Info("Starting updater for alert-generator")
 		controller.Update(clientset, ago.UpdateInterval, alertch)
+		log.Info("Stopping updater for alert-generator")
 		wg.Done()
 	}()
 
 	//Goroutine for serve healthz endpoint
-	log.Info("Starting HTTP server for alert-generator")
 	go func() {
+		log.Info("Starting HTTP server for alert-generator")
 		err := http.ListenAndServe(addr, nil)
 		if err != nil {
 			log.Fatalf("Failed to start server: %v", err)
