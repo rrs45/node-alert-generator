@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
@@ -43,19 +44,34 @@ func initClient(ago *options.AlertGeneratorOptions) (*kubernetes.Clientset, erro
 	}
 }
 
+func startHttpServer(addr string, port string) *http.Server {
+	mux := http.NewServeMux()
+	srv := &http.Server{Addr: addr + ":" + port, Handler: mux}
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	go func() {
+		log.Info("Starting HTTP server for alert-generator")
+		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatalf("Could not start http server: %s", err)
+		}
+	}()
+	return srv
+}
+
 func main() {
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
 	log.SetLevel(log.InfoLevel)
+
+	//Parse command line options
 	ago := options.NewAlertGeneratorOptions()
 	ago.AddFlags(flag.CommandLine)
 	flag.Parse()
-	//Instantiate the http server
-	addr := ago.ServerAddress + ":" + ago.ServerPort
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
+
+	srv := startHttpServer(ago.ServerAddress, ago.ServerPort)
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -74,6 +90,9 @@ func main() {
 		log.Info("Starting controller for alert-generator")
 		controller.Do(clientset, ago.NoLabel, alertch, labelch)
 		log.Info("Stopping controller for alert-generator")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Could not stop http server: %s", err)
+		}
 		wg.Done()
 	}()
 
@@ -81,6 +100,9 @@ func main() {
 		log.Info("Starting labeller for alert-generator")
 		controller.LabelNode(clientset, labelch)
 		log.Info("Stopping labeller for alert-generator")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Could not stop http server: %s", err)
+		}
 		wg.Done()
 	}()
 
@@ -88,16 +110,10 @@ func main() {
 		log.Info("Starting updater for alert-generator")
 		controller.Update(clientset, ago.UpdateInterval, alertch)
 		log.Info("Stopping updater for alert-generator")
-		wg.Done()
-	}()
-
-	//Goroutine for serve healthz endpoint
-	go func() {
-		log.Info("Starting HTTP server for alert-generator")
-		err := http.ListenAndServe(addr, nil)
-		if err != nil {
-			log.Fatalf("Failed to start server: %v", err)
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Could not stop http server: %s", err)
 		}
+		wg.Done()
 	}()
 
 	wg.Wait()
