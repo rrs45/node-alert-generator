@@ -32,7 +32,7 @@ func Update(client *kubernetes.Clientset, interval float64, ch <-chan types.Aler
 					},
 					Data: buf,
 				}
-				log.Info("Updater - Updating configmap in update.go")
+				log.Info("Updater - Updating configmap with ", len(buf), " entries")
 				result, err := configmapClient.Update(cm)
 				log.Debug("Updater - Created configmap ", result)
 				if err != nil {
