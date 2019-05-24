@@ -70,6 +70,7 @@ func main() {
 	ago := options.NewAlertGeneratorOptions()
 	ago.AddFlags(flag.CommandLine)
 	flag.Parse()
+	ago.ValidOrDie()
 
 	srv := startHttpServer(ago.ServerAddress, ago.ServerPort)
 
