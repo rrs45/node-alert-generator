@@ -2,8 +2,8 @@ package options
 
 import (
 	"flag"
-	"log"
 	"time"
+	 log "github.com/sirupsen/logrus"
 )
 
 type AlertGeneratorOptions struct {
