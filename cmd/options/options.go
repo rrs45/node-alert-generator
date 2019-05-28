@@ -2,6 +2,8 @@ package options
 
 import (
 	"flag"
+	"log"
+	"time"
 )
 
 type AlertGeneratorOptions struct {
@@ -9,7 +11,7 @@ type AlertGeneratorOptions struct {
 	ServerPort     string
 	ApiServerHost  string
 	NoLabel        bool
-	UpdateInterval float64
+	UpdateInterval string
 }
 
 func NewAlertGeneratorOptions() *AlertGeneratorOptions {
@@ -22,5 +24,12 @@ func (ago *AlertGeneratorOptions) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&ago.ServerPort, "port", "8080", "Port to bind the alert generator server")
 	fs.StringVar(&ago.ApiServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
 	fs.BoolVar(&ago.NoLabel, "nolabel", true, "Dont set labels")
-	fs.Float64Var(&ago.UpdateInterval, "interval", 60, "Interval in seconds at which configmap will be updated")
+	fs.StringVar(&ago.UpdateInterval, "interval", "60", "Interval in seconds at which configmap will be updated")
+}
+
+func (ago *AlertGeneratorOptions) ValidOrDie() {
+	_, err := time.ParseDuration(ago.UpdateInterval)
+	if err != nil {
+		log.Panic("Updater - Incorrect interval, sample format: 10s or 1m or 1h; ", err)
+	}
 }

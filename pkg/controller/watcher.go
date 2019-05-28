@@ -42,52 +42,64 @@ func (c *AlertGeneratorController) nodeAdd(obj interface{}) {
 	log.Infof("Watcher - Received node add event for %s in watcher.go ", node.Name)
 }
 
+func checkLabels(labels map[string]string) string {
+	for k, v := range labels {
+		if k == "maintenance.box.com/source" {
+			if v != "npd" {
+				return "non_npd_maint"
+			} else {
+				return "npd_maint"
+			}
+		}
+	}
+	return "no_maint"
+}
+
+func checkConditions(conditions []v1.NodeCondition, node string) ([]types.Alert, bool) {
+	var buf []types.Alert
+	node_ready := false
+	var item types.Alert
+	for _, condition := range conditions {
+		if condition.Type[:4] == "NPD-" && condition.Status == "True" {
+			item.Timestamp = condition.LastHeartbeatTime.Time
+			item.Node = node
+			item.Condition = condition.Type
+			item.Action = ""
+			item.Params = condition.Message
+			buf = append(buf, item)
+		} else if condition.Type == "Ready" && condition.Status == "True" {
+			node_ready = true
+		}
+	}
+	return buf, node_ready
+
+}
+
 func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
 	oldNode := oldN.(*v1.Node)
-	labeled := new(bool)
-	var x types.Alert
-	var buf []types.Alert
+	//generateAlert(oldNode, c.nolabel, c.alertch, c.labelch)
+	var labeled bool
 	//Check if node is cordon'd & has maintenance labels
 	if !oldNode.Spec.Unschedulable {
-		for k, v := range oldNode.GetLabels() {
-			if k == "maintenance.box.com/source" {
-				//Exit if source is other than npd
-				if v != "npd" {
-					goto Exit
-				} else {
-					*labeled = true
-					break
-				}
-			}
+		maint := checkLabels(oldNode.GetLabels())
+		if maint == "non_npd_maint" {
+			log.Info("Watcher - Node under maintenance by different source")
+			return
+		} else if maint == "npd_maint" {
+			labeled = true
 		}
-
-		node_ready := false
-		//log.Info("condition loop:")
-		for _, i := range oldNode.Status.Conditions {
-			//log.Info(i.Type, " ", i.Status, oldNode.Name)
-			if i.Type[:4] == "NPD-" && i.Status == "True" {
-				x.Timestamp = i.LastHeartbeatTime.Time
-				x.Node = oldNode.Name
-				x.Condition = i.Type
-				x.Action = ""
-				x.Params = i.Message
-				buf = append(buf, x)
-			} else if i.Type == "Ready" && i.Status == "True" {
-				node_ready = true
-			}
-		}
+		buf, node_ready := checkConditions(oldNode.Status.Conditions, oldNode.Name)
 		//log.Info(buf)
 		if node_ready && buf != nil {
 			log.Debug("Watcher - Found issue on ", oldNode.Name, " in watcher.go")
 			for _, a := range buf {
 				c.alertch <- a
 			}
-			if !*labeled && !c.nolabel {
+			if !labeled && !c.nolabel {
 				c.labelch <- oldNode
 			}
 		}
 	}
-Exit:
 }
 
 func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
