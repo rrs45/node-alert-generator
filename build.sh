@@ -12,7 +12,7 @@ mv pkg $godir/box-autoremediation/
 cd $godir/box-autoremediation
 mkdir bin
 go get ./...
-
+go test -v ./pkg/...
 CGO_ENABLED=1 GOOS=linux go build -o bin/alert-generator cmd/alert_generator.go
 
 mkdir -p /git-root/build
