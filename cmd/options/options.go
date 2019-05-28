@@ -2,8 +2,11 @@ package options
 
 import (
 	"flag"
+	"os"
+	"path"
 	"time"
-	 log "github.com/sirupsen/logrus"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type AlertGeneratorOptions struct {
@@ -12,6 +15,7 @@ type AlertGeneratorOptions struct {
 	ApiServerHost  string
 	NoLabel        bool
 	UpdateInterval string
+	LogFile        string
 }
 
 func NewAlertGeneratorOptions() *AlertGeneratorOptions {
@@ -24,12 +28,18 @@ func (ago *AlertGeneratorOptions) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&ago.ServerPort, "port", "8080", "Port to bind the alert generator server")
 	fs.StringVar(&ago.ApiServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
 	fs.BoolVar(&ago.NoLabel, "nolabel", true, "Dont set labels")
+	fs.StringVar(&ago.LogFile, "log-file", "/var/log/service/alert-generator.log", "Log file to store all logs")
 	fs.StringVar(&ago.UpdateInterval, "interval", "60", "Interval in seconds at which configmap will be updated")
 }
 
 func (ago *AlertGeneratorOptions) ValidOrDie() {
 	_, err := time.ParseDuration(ago.UpdateInterval)
 	if err != nil {
-		log.Panic("Updater - Incorrect interval, sample format: 10s or 1m or 1h; ", err)
+		log.Panic("Options - Incorrect interval, sample format: 10s or 1m or 1h; ", err)
+	}
+	dir, _ := path.Split(ago.LogFile)
+	_, err1 := os.Stat(dir)
+	if err1 != nil {
+		log.Panic("Options - Directory does not exist: %s ", dir)
 	}
 }
