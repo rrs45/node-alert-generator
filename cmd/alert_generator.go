@@ -44,7 +44,7 @@ func initClient(ago *options.AlertGeneratorOptions) (*kubernetes.Clientset, erro
 	}
 }
 
-func startHttpServer(addr string, port string) *http.Server {
+func startHTTPServer(addr string, port string) *http.Server {
 	mux := http.NewServeMux()
 	srv := &http.Server{Addr: addr + ":" + port, Handler: mux}
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +75,7 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f)
 
-	srv := startHttpServer(ago.ServerAddress, ago.ServerPort)
+	srv := startHTTPServer(ago.ServerAddress, ago.ServerPort)
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -92,7 +92,7 @@ func main() {
 
 	go func() {
 		log.Info("Starting controller for alert-generator")
-		controller.Do(clientset, ago.NoLabel, alertch, labelch)
+		controller.Start(clientset, ago.NoLabel, alertch, labelch)
 		log.Info("Stopping controller for alert-generator")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -112,7 +112,7 @@ func main() {
 
 	go func() {
 		log.Info("Starting updater for alert-generator")
-		controller.Update(clientset, ago.UpdateInterval, alertch)
+		controller.Update(clientset, ago.Namespace, ago.AlertConfigMap, ago.UpdateInterval, alertch)
 		log.Info("Stopping updater for alert-generator")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)

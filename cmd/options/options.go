@@ -16,6 +16,8 @@ type AlertGeneratorOptions struct {
 	NoLabel        bool
 	UpdateInterval string
 	LogFile        string
+	Namespace      string
+	AlertConfigMap string
 }
 
 func NewAlertGeneratorOptions() *AlertGeneratorOptions {
@@ -30,6 +32,8 @@ func (ago *AlertGeneratorOptions) AddFlags(fs *flag.FlagSet) {
 	fs.BoolVar(&ago.NoLabel, "nolabel", true, "Dont set labels")
 	fs.StringVar(&ago.LogFile, "log-file", "/var/log/service/alert-generator.log", "Log file to store all logs")
 	fs.StringVar(&ago.UpdateInterval, "interval", "60", "Interval in seconds at which configmap will be updated")
+	fs.StringVar(&ago.AlertConfigMap, "alert-config-map", "npd-alerts", "Name of config map to store alerts")
+	fs.StringVar(&ago.Namespace, "namespace", "node-problem-detector", "Namespace where config map will be")
 }
 
 func (ago *AlertGeneratorOptions) ValidOrDie() {
