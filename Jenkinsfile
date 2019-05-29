@@ -6,7 +6,7 @@ pipeline {
         timeout(time: 1, unit: 'HOURS')
     }
     environment {
-        SKYNET_APP = 'alert-generator'
+        SKYNET_APP = 'node-alert-generator'
     }
     parameters {
         string(name: "BUILD_NUMBER", defaultValue: "", description: "Replay build value")
