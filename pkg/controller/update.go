@@ -10,23 +10,27 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-func Update(client *kubernetes.Clientset, interval string, ch <-chan types.Alert) {
-	buf_cur := make(map[string]string)
-	buf_prev := make(map[string]string)
+//Update creates config map if it doesnt exist and
+//updates the config map with alerts received from watcher
+func Update(client *kubernetes.Clientset, ns string, configMap string, interval string, ch <-chan types.Alert) {
+	bufCur := make(map[string]string)
+	bufPrev := make(map[string]string)
 	frequency, err := time.ParseDuration(interval)
 	if err != nil {
 		log.Fatal("Updater - Could not parse interval: ", err)
 	}
 	ticker := time.NewTicker(frequency)
-	configmapClient := client.CoreV1().ConfigMaps("node-problem-detector")
+	configmapClient := client.CoreV1().ConfigMaps(ns)
+	initConfigMap(configmapClient, configMap)
 
 	for {
 		select {
 		case <-ticker.C:
-			log.Debug(buf_cur, len(buf_cur))
-			eq := reflect.DeepEqual(buf_prev, buf_cur)
+			log.Debug(bufCur, len(bufCur))
+			eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
 				log.Info("Updater - No new entries found")
 			} else {
@@ -35,9 +39,9 @@ func Update(client *kubernetes.Clientset, interval string, ch <-chan types.Alert
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "npd-alerts",
 					},
-					Data: buf_cur,
+					Data: bufCur,
 				}
-				log.Info("Updater - Updating configmap with ", len(buf_cur), " entries")
+				log.Info("Updater - Updating configmap with ", len(bufCur), " entries")
 				for count := 0; count < 3; count++ {
 					result, err := configmapClient.Update(cm)
 					if err != nil {
@@ -49,22 +53,51 @@ func Update(client *kubernetes.Clientset, interval string, ch <-chan types.Alert
 							log.Errorf("Updater - Could not update configmap after 3 attempts: %s", err)
 						}
 					} else {
-						log.Debug("Updater - Created configmap ", result)
+						log.Debug("Updater - Updated configmap ", result)
 						break
 					}
 				}
 
 			}
-			buf_prev = buf_cur
-			buf_cur = make(map[string]string)
+			bufPrev = bufCur
+			bufCur = make(map[string]string)
 		default:
 			select {
 			case r := <-ch:
-				buf_cur[r.Node+"_"+string(r.Condition)] = r.Params
+				bufCur[r.Node+"_"+string(r.Condition)] = r.Params
 			default:
 				continue
 			}
 		}
 	}
 	ticker.Stop()
+}
+
+func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
+	_, err1 := configmapClient.Get(name, metav1.GetOptions{})
+	if err1 != nil {
+		log.Infof("Updater - %s configmap not found, creating new one", name)
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "npd-alerts",
+			},
+		}
+		for count := 0; count < 3; count++ {
+			result, err2 := configmapClient.Create(cm)
+			if err2 != nil {
+				if count < 3 {
+					log.Infof("Updater - Could not create configmap tried %d times, retrying after 1000ms: %s", count, err2)
+					time.Sleep(100 * time.Millisecond)
+					continue
+				} else {
+					log.Errorf("Updater - Could not create configmap after 3 attempts: %s", err2)
+				}
+			} else {
+				log.Debug("Updater - Created configmap ", result)
+				break
+			}
+		}
+	} else {
+		log.Infof("Updater - %s configmap already exists", name)
+	}
 }

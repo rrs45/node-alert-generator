@@ -11,8 +11,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+//LabelNode labels the node with given maintenace labels
 func LabelNode(client *kubernetes.Clientset, ch <-chan *v1.Node) {
-
 	for {
 		select {
 		case n := <-ch:

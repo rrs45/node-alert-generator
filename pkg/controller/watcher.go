@@ -16,7 +16,7 @@ import (
 	"github.com/box-autoremediation/pkg/controller/types"
 )
 
-//Struct for encapsulating generic Informer methods and Node informer
+//AlertGeneratorController struct for encapsulating generic Informer methods and Node informer
 type AlertGeneratorController struct {
 	informerFactory informers.SharedInformerFactory
 	nodeInformer    coreInformers.NodeInformer
@@ -57,7 +57,7 @@ func checkLabels(labels map[string]string) string {
 
 func checkConditions(conditions []v1.NodeCondition, node string) ([]types.Alert, bool) {
 	var buf []types.Alert
-	node_ready := false
+	nodeReady := false
 	var item types.Alert
 	for _, condition := range conditions {
 		if condition.Type[:4] == "NPD-" && condition.Status == "True" {
@@ -68,11 +68,10 @@ func checkConditions(conditions []v1.NodeCondition, node string) ([]types.Alert,
 			item.Params = condition.Message
 			buf = append(buf, item)
 		} else if condition.Type == "Ready" && condition.Status == "True" {
-			node_ready = true
+			nodeReady = true
 		}
 	}
-	return buf, node_ready
-
+	return buf, nodeReady
 }
 
 func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
@@ -88,9 +87,9 @@ func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
 		} else if maint == "npd_maint" {
 			labeled = true
 		}
-		buf, node_ready := checkConditions(oldNode.Status.Conditions, oldNode.Name)
+		buf, nodeReady := checkConditions(oldNode.Status.Conditions, oldNode.Name)
 		//log.Info(buf)
-		if node_ready && buf != nil {
+		if nodeReady && buf != nil {
 			log.Debug("Watcher - Found issue on ", oldNode.Name, " in watcher.go")
 			for _, a := range buf {
 				c.alertch <- a
@@ -107,7 +106,8 @@ func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 	log.Infof("Watcher - Received node delete event for %s in watcher.go", node.Namespace)
 }
 
-// NewAlertGeneratorController creates a new AlertGeneratorController
+//NewAlertGeneratorController creates a initializes AlertGeneratorController struct
+//and adds event handler functions
 func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) *AlertGeneratorController {
 	nodeInf := informerFactory.Core().V1().Nodes()
 
@@ -132,7 +132,8 @@ func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory
 	return c
 }
 
-func Do(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) {
+//Start starts the controller
+func Start(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) {
 	//Get current directory
 
 	//Set logrus
