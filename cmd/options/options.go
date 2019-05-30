@@ -30,10 +30,10 @@ func (ago *AlertGeneratorOptions) AddFlags(fs *flag.FlagSet) {
 	fs.StringVar(&ago.ServerPort, "port", "8080", "Port to bind the alert generator server")
 	fs.StringVar(&ago.ApiServerHost, "apiserver-host", "", "Custom hostname used to connect to Kubernetes ApiServer")
 	fs.BoolVar(&ago.NoLabel, "nolabel", true, "Dont set labels")
-	fs.StringVar(&ago.LogFile, "log-file", "/var/log/service/alert-generator.log", "Log file to store all logs")
+	fs.StringVar(&ago.LogFile, "log-file", "/var/log/service/node-alert-generator.log", "Log file to store all logs")
 	fs.StringVar(&ago.UpdateInterval, "interval", "60", "Interval in seconds at which configmap will be updated")
 	fs.StringVar(&ago.AlertConfigMap, "alert-config-map", "npd-alerts", "Name of config map to store alerts")
-	fs.StringVar(&ago.Namespace, "namespace", "node-problem-detector", "Namespace where config map will be")
+	fs.StringVar(&ago.Namespace, "namespace", "node-alert-generator", "Namespace where config map will be")
 }
 
 func (ago *AlertGeneratorOptions) ValidOrDie() {
