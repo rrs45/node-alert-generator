@@ -1,14 +1,14 @@
 # box-autoremediation
-This is a K8s controller monitoring Node health as represented by node-problem-detector. It does the following:
+This is a K8s custom controller to monitor Node health as represented by node-problem-detector. It does the following:
 1. Extracts node conditions based on following conditions: 
-..* Name starts with 'NPD-'
-..* Status is 'True'
-..* Node does not have maintenance labels except the ones created by node-alert-generator
+   * Name starts with 'NPD-'
+   * Status is 'True'
+   * Node does not have maintenance labels except the ones created by node-alert-generator
 2. Populates given config map with the alerts by:
-..* Gathering all filtered conditions upto the user defined interval
-..* Deduplicating alerts
-..* Populating the given config map with alerts if they are different than alerts from previous interval
-..* Labeling the Node with 'maintenance.box.com/source=npd' if enabled by user
+   * Gathering all filtered conditions upto the user defined interval
+   * Deduplicating alerts
+   * Populating the given config map with alerts if they are different than alerts from previous interval
+   * Labeling the Node with 'maintenance.box.com/source=npd' if enabled by user
 
 ## Usage
 ```$ ./node-alert-generator -h
@@ -28,6 +28,6 @@ Usage of ./node-alert-generator:
   -nolabel
     	Dont set labels (default true)
   -port string
-    	Port to bind the alert generator server (default "8080")
+    	Port to bind the alert generator server for /healthz endpoint (default "8080")
 ...<snipping irrelevant options>...
 ```
