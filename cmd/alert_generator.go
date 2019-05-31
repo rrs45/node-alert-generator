@@ -92,7 +92,7 @@ func main() {
 
 	go func() {
 		log.Info("Starting controller for alert-generator")
-		controller.Start(clientset, ago.NoLabel, alertch, labelch)
+		controller.Start(clientset, ago.NoLabel, ago.AlertIgnoreInterval, alertch, labelch)
 		log.Info("Stopping controller for alert-generator")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)

@@ -4,6 +4,7 @@ This is a K8s custom controller to monitor Node health as represented by node-pr
    * Name starts with 'NPD-'
    * Status is 'True'
    * Node does not have maintenance labels except the ones created by node-alert-generator
+   * Alerts not older than given time period
 2. Populates given config map with the alerts by:
    * Gathering all filtered conditions upto the user defined interval
    * Deduplicating alerts

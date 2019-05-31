@@ -18,11 +18,12 @@ import (
 
 //AlertGeneratorController struct for encapsulating generic Informer methods and Node informer
 type AlertGeneratorController struct {
-	informerFactory informers.SharedInformerFactory
-	nodeInformer    coreInformers.NodeInformer
-	alertch         chan<- types.Alert
-	labelch         chan<- *v1.Node
-	nolabel         bool
+	informerFactory     informers.SharedInformerFactory
+	nodeInformer        coreInformers.NodeInformer
+	alertch             chan<- types.Alert
+	labelch             chan<- *v1.Node
+	nolabel             bool
+	alertIgnoreInterval time.Duration
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -55,12 +56,12 @@ func checkLabels(labels map[string]string) string {
 	return "no_maint"
 }
 
-func checkConditions(conditions []v1.NodeCondition, node string) ([]types.Alert, bool) {
+func checkConditions(conditions []v1.NodeCondition, node string, alertIgnoreInterval time.Duration) ([]types.Alert, bool) {
 	var buf []types.Alert
 	nodeReady := false
 	var item types.Alert
 	for _, condition := range conditions {
-		if condition.Type[:4] == "NPD-" && condition.Status == "True" {
+		if condition.Type[:4] == "NPD-" && condition.Status == "True" && time.Since(condition.LastHeartbeatTime.Time) < alertIgnoreInterval {
 			item.Timestamp = condition.LastHeartbeatTime.Time
 			item.Node = node
 			item.Condition = condition.Type
@@ -87,7 +88,7 @@ func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
 		} else if maint == "npd_maint" {
 			labeled = true
 		}
-		buf, nodeReady := checkConditions(oldNode.Status.Conditions, oldNode.Name)
+		buf, nodeReady := checkConditions(oldNode.Status.Conditions, oldNode.Name, c.alertIgnoreInterval)
 		//log.Info(buf)
 		if nodeReady && buf != nil {
 			log.Debug("Watcher - Found issue on ", oldNode.Name, " in watcher.go")
@@ -108,15 +109,16 @@ func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 
 //NewAlertGeneratorController creates a initializes AlertGeneratorController struct
 //and adds event handler functions
-func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) *AlertGeneratorController {
+func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, nolabel bool, alertIgnoreInterval time.Duration, alertch chan<- types.Alert, labelch chan<- *v1.Node) *AlertGeneratorController {
 	nodeInf := informerFactory.Core().V1().Nodes()
 
 	c := &AlertGeneratorController{
-		informerFactory: informerFactory,
-		nodeInformer:    nodeInf,
-		alertch:         alertch,
-		labelch:         labelch,
-		nolabel:         nolabel,
+		informerFactory:     informerFactory,
+		nodeInformer:        nodeInf,
+		alertch:             alertch,
+		labelch:             labelch,
+		nolabel:             nolabel,
+		alertIgnoreInterval: alertIgnoreInterval,
 	}
 	nodeInf.Informer().AddEventHandler(
 		// Your custom resource event handlers.
@@ -133,8 +135,11 @@ func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory
 }
 
 //Start starts the controller
-func Start(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.Alert, labelch chan<- *v1.Node) {
-	//Get current directory
+func Start(clientset *kubernetes.Clientset, nolabel bool, alertIgnoreInterval string, alertch chan<- types.Alert, labelch chan<- *v1.Node) {
+	frequency, err1 := time.ParseDuration(alertIgnoreInterval)
+	if err1 != nil {
+		log.Fatal("Watcher - Could not parse ignore interval: ", err1)
+	}
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
@@ -143,7 +148,7 @@ func Start(clientset *kubernetes.Clientset, nolabel bool, alertch chan<- types.A
 	log.Info("Watcher - Creating informer factory for alert-generator ")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, "", func(opt *metav1.ListOptions) { opt.LabelSelector = "box.com/pool in (generic, calico)" })
-	controller := NewAlertGeneratorController(factory, nolabel, alertch, labelch)
+	controller := NewAlertGeneratorController(factory, nolabel, frequency, alertch, labelch)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)
