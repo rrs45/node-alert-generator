@@ -37,7 +37,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 				//Create config map
 				cm := &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "npd-alerts",
+						Name: configMap,
 					},
 					Data: bufCur,
 				}
@@ -79,7 +79,7 @@ func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
 		log.Infof("Updater - %s configmap not found, creating new one", name)
 		cm := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "npd-alerts",
+				Name: name,
 			},
 		}
 		for count := 0; count < 3; count++ {
