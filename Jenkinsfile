@@ -29,6 +29,7 @@ pipeline {
                 deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
             }
         }
+
     }
         post {
         always {
