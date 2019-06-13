@@ -70,7 +70,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 			}
 		}
 	}
-	ticker.Stop()
+ticker.Stop()
 }
 
 func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
