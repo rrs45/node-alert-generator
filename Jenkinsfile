@@ -24,7 +24,7 @@ pipeline {
             }
         }
         stage('Deploy To Sandbox') {
-            when { branch 'master' }
+            when { branch 'master'  }
             steps {
                 deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
             }

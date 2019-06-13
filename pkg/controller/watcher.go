@@ -48,9 +48,8 @@ func checkLabels(labels map[string]string) string {
 		if k == "maintenance.box.com/source" {
 			if v != "npd" {
 				return "non_npd_maint"
-			} else {
-				return "npd_maint"
-			}
+			} 
+			return "npd_maint"
 		}
 	}
 	return "no_maint"
@@ -88,9 +87,9 @@ func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
 		} else if maint == "npd_maint" {
 			labeled = true
 		}
-		buf, nodeReady := checkConditions(oldNode.Status.Conditions, oldNode.Name, c.alertIgnoreInterval)
+		buf, _ := checkConditions(oldNode.Status.Conditions, oldNode.Name, c.alertIgnoreInterval)
 		//log.Info(buf)
-		if nodeReady && buf != nil {
+		if  buf != nil {
 			log.Debug("Watcher - Found issue on ", oldNode.Name, " in watcher.go")
 			for _, a := range buf {
 				c.alertch <- a
