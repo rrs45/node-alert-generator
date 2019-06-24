@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -12,7 +13,7 @@ import (
 )
 
 //LabelNode labels the node with given maintenace labels
-func LabelNode(client *kubernetes.Clientset, ch <-chan *v1.Node) {
+func LabelNode(client *kubernetes.Clientset, ch <-chan *v1.Node, nodeLabel string) {
 	for {
 		select {
 		case n := <-ch:
@@ -22,11 +23,12 @@ func LabelNode(client *kubernetes.Clientset, ch <-chan *v1.Node) {
 				log.Error("Labeler - could not marshal old node object", err)
 			}
 			l := n.GetLabels()
-			if _, ok := l["maintenance.box.com/source"]; ok {
+			label := strings.Split(nodeLabel, "=")
+			if _, ok := l[label[0]]; ok {
 				log.Info("Labeller - Label exists hence ignoring")
 				continue
 			}
-			l["maintenance.box.com/source"] = "npd"
+			l[label[0]] = label[1]
 			n.SetLabels(l)
 			newData, err := json.Marshal(n)
 			if err != nil {
