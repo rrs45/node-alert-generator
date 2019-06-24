@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"reflect"
 	"time"
+	"encoding/json"
 
 	log "github.com/sirupsen/logrus"
 
@@ -16,8 +16,9 @@ import (
 //Update creates config map if it doesnt exist and
 //updates the config map with alerts received from watcher
 func Update(client *kubernetes.Clientset, ns string, configMap string, interval string, ch <-chan types.Alert) {
-	bufCur := make(map[string]string)
-	bufPrev := make(map[string]string)
+	bufCur := make(map[string]types.Action)
+	buf := make(map[string]string)
+	//bufPrev := make(map[string]string)
 	frequency, err := time.ParseDuration(interval)
 	if err != nil {
 		log.Fatal("Updater - Could not parse interval: ", err)
@@ -29,17 +30,25 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 	for {
 		select {
 		case <-ticker.C:
-			log.Debug(bufCur, len(bufCur))
-			eq := reflect.DeepEqual(bufPrev, bufCur)
+			log.Debugf("%+v %d",bufCur, len(bufCur))
+			/*eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
 				log.Info("Updater - No new entries found")
-			} else {
+			} else { */
 				//Create config map
+				for cond, val := range bufCur {
+					rstr, err := json.Marshal(val)
+					if err != nil {
+						log.Errorf("ConfigMap Updater - unable to marshal %+v: %e", val, err)
+					} else {
+						buf[cond] = string(rstr)
+					}
+				}
 				cm := &v1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: configMap,
 					},
-					Data: bufCur,
+					Data: buf,
 				}
 				log.Info("Updater - Updating configmap with ", len(bufCur), " entries")
 				for count := 0; count < 3; count++ {
@@ -58,13 +67,18 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 					}
 				}
 
-			}
-			bufPrev = bufCur
-			bufCur = make(map[string]string)
+			//}
+			//bufPrev = bufCur
+			bufCur = make(map[string]types.Action)
 		default:
 			select {
 			case r := <-ch:
-				bufCur[r.Node+"_"+string(r.Condition)] = r.Params
+				bufCur[r.Node+"_"+string(r.Condition)] = types.Action{
+															Timestamp: r.Attr.Timestamp,
+															Action:    r.Attr.Action,
+															Params:		r.Attr.Params,    
+															SuccessWait: r.Attr.SuccessWait,
+															FailedRetry: r.Attr.FailedRetry, }
 			default:
 				continue
 			}

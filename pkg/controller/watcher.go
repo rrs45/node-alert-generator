@@ -12,18 +12,14 @@ import (
 	coreInformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/box-autoremediation/pkg/controller/types"
 )
 
 //AlertGeneratorController struct for encapsulating generic Informer methods and Node informer
 type AlertGeneratorController struct {
 	informerFactory     informers.SharedInformerFactory
 	nodeInformer        coreInformers.NodeInformer
-	alertch             chan<- types.Alert
-	labelch             chan<- *v1.Node
-	nolabel             bool
-	alertIgnoreInterval time.Duration
+	filterCh       		chan<- *v1.Node
+	cordoned             bool
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -43,62 +39,17 @@ func (c *AlertGeneratorController) nodeAdd(obj interface{}) {
 	log.Infof("Watcher - Received node add event for %s in watcher.go ", node.Name)
 }
 
-func checkLabels(labels map[string]string) string {
-	for k, v := range labels {
-		if k == "maintenance.box.com/source" {
-			if v != "npd" {
-				return "non_npd_maint"
-			} 
-			return "npd_maint"
-		}
-	}
-	return "no_maint"
-}
-
-func checkConditions(conditions []v1.NodeCondition, node string, alertIgnoreInterval time.Duration) ([]types.Alert, bool) {
-	var buf []types.Alert
-	nodeReady := false
-	var item types.Alert
-	for _, condition := range conditions {
-		if condition.Type[:4] == "NPD-" && condition.Status == "True" && time.Since(condition.LastHeartbeatTime.Time) < alertIgnoreInterval {
-			item.Timestamp = condition.LastHeartbeatTime.Time
-			item.Node = node
-			item.Condition = condition.Type
-			item.Action = ""
-			item.Params = condition.Message
-			buf = append(buf, item)
-		} else if condition.Type == "Ready" && condition.Status == "True" {
-			nodeReady = true
-		}
-	}
-	return buf, nodeReady
-}
-
 func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
-	oldNode := oldN.(*v1.Node)
-	//generateAlert(oldNode, c.nolabel, c.alertch, c.labelch)
-	var labeled bool
-	//Check if node is cordon'd & has maintenance labels
-	if !oldNode.Spec.Unschedulable {
-		maint := checkLabels(oldNode.GetLabels())
-		if maint == "non_npd_maint" {
-			log.Info("Watcher - Node under maintenance by different source")
-			return
-		} else if maint == "npd_maint" {
-			labeled = true
-		}
-		buf, _ := checkConditions(oldNode.Status.Conditions, oldNode.Name, c.alertIgnoreInterval)
-		//log.Info(buf)
-		if  buf != nil {
-			log.Debug("Watcher - Found issue on ", oldNode.Name, " in watcher.go")
-			for _, a := range buf {
-				c.alertch <- a
-			}
-			if !labeled && !c.nolabel {
-				c.labelch <- oldNode
-			}
-		}
+	newNode := newN.(*v1.Node)
+	//Check if node is cordon'd 
+	if !c.cordoned {
+		//Exclude cordon'd nodes
+		if !newNode.Spec.Unschedulable {
+			c.filterCh <- newNode
+		}	
 	}
+	//Include both cordon'd and uncordon'd nodes
+	c.filterCh <- newNode
 }
 
 func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
@@ -108,16 +59,14 @@ func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 
 //NewAlertGeneratorController creates a initializes AlertGeneratorController struct
 //and adds event handler functions
-func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, nolabel bool, alertIgnoreInterval time.Duration, alertch chan<- types.Alert, labelch chan<- *v1.Node) *AlertGeneratorController {
+func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, cordoned bool, filterCh chan<- *v1.Node ) *AlertGeneratorController {
 	nodeInf := informerFactory.Core().V1().Nodes()
 
 	c := &AlertGeneratorController{
 		informerFactory:     informerFactory,
 		nodeInformer:        nodeInf,
-		alertch:             alertch,
-		labelch:             labelch,
-		nolabel:             nolabel,
-		alertIgnoreInterval: alertIgnoreInterval,
+		filterCh:             filterCh,
+		cordoned:             cordoned,
 	}
 	nodeInf.Informer().AddEventHandler(
 		// Your custom resource event handlers.
@@ -134,11 +83,7 @@ func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory
 }
 
 //Start starts the controller
-func Start(clientset *kubernetes.Clientset, nolabel bool, alertIgnoreInterval string, alertch chan<- types.Alert, labelch chan<- *v1.Node) {
-	frequency, err1 := time.ParseDuration(alertIgnoreInterval)
-	if err1 != nil {
-		log.Fatal("Watcher - Could not parse ignore interval: ", err1)
-	}
+func Start(clientset *kubernetes.Clientset, cordoned bool, filterCh chan<- *v1.Node) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
@@ -147,7 +92,7 @@ func Start(clientset *kubernetes.Clientset, nolabel bool, alertIgnoreInterval st
 	log.Info("Watcher - Creating informer factory for alert-generator ")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, "", func(opt *metav1.ListOptions) { opt.LabelSelector = "box.com/pool in (generic, calico)" })
-	controller := NewAlertGeneratorController(factory, nolabel, frequency, alertch, labelch)
+	controller := NewAlertGeneratorController(factory, cordoned,  filterCh)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)

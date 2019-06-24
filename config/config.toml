@@ -1,0 +1,44 @@
+
+KubeAPIServer = ""
+SetNodeLabel = false
+NodeLabel = "maintenance.box.com/source=npd"
+log_file = "/tmp/node-alert-generator.log"
+namespace = "node-problem-detector"
+
+[healthcheck]
+server = "0.0.0.0"
+port = 8080
+
+
+[config_map]
+name = "npd-alerts"
+#ConfigMap update interval
+frequency = "10s"
+
+[node_status]
+cordoned = false
+include_not_ready = true
+
+[label_filter.exclude]
+key = "maintenance.box.com/source"
+not_val = "npd"
+not_match = "node-alert-worker-.*"
+
+[condition.options]
+match = "NPD-.*"
+#Only consider conditions whose last heartbeat time is within this interval
+interval = "25h" # h stands for hours, s stands for seconds
+
+#Node conditions to Actions mapping
+[condition.Name.NPD-PuppetRunDelayed]
+Action = "test1.yml"
+SuccessWait = "1m"
+FailedRetry = "2"
+
+[condition.Name.NPD-ChronyIssue]
+Action = "test1.yml"
+SuccessWait = "1m"
+FailedRetry = "2"
+
+
+

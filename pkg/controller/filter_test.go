@@ -8,6 +8,7 @@ import (
 	"github.com/box-autoremediation/pkg/controller/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/spf13/viper"
 )
 
 func TestConditions(t *testing.T) {
@@ -19,12 +20,18 @@ func TestConditions(t *testing.T) {
 	last1min := now.Add(time.Minute * time.Duration(-1))
 	last25hour := now.Add(time.Hour * time.Duration(-25))
 
-	frequency, _ := time.ParseDuration("24h")
-	cond_table := []struct {
+	condOptions := viper.New()
+	condOptions.SetDefault("match", "NPD-.*")
+	condOptions.SetDefault("interval","24h")
+
+	//frequency, _ := time.ParseDuration("24h")
+	condTable := []struct {
 		conds       []v1.NodeCondition
 		node        string
+		inclNotReady bool
 		expectedBuf []types.Alert
-		isNodeReady bool
+		expectedOK bool
+		
 	}{
 		{
 			conds: []v1.NodeCondition{
@@ -46,16 +53,19 @@ func TestConditions(t *testing.T) {
 				},
 			},
 			node: "fake-compute-node.dsv31.boxdc.net",
+			inclNotReady: false,
 			expectedBuf: []types.Alert{
 				{
-					Timestamp: last1min,
 					Node:      "fake-compute-node.dsv31.boxdc.net",
 					Condition: "NPD-KubeletCertExpiring",
-					Action:    "",
-					Params:    "status = OK threshold_days = 60 result_days = 280",
+					Attr:     types.Action{
+									Timestamp: last1min,
+									Params:    "status = OK threshold_days = 60 result_days = 280",
+									SuccessWait: "",
+									FailedRetry: "",},
 				},
 			},
-			isNodeReady: true,
+			expectedOK: true,	
 		},
 		{
 			conds: []v1.NodeCondition{
@@ -77,16 +87,19 @@ func TestConditions(t *testing.T) {
 				},
 			},
 			node: "fake-compute-node.dsv31.boxdc.net",
+			inclNotReady: true,
 			expectedBuf: []types.Alert{
 				{
-					Timestamp: last1min,
 					Node:      "fake-compute-node.dsv31.boxdc.net",
 					Condition: "NPD-KubeletIsDown",
-					Action:    "",
-					Params:    "status = CRITICAL",
+					Attr:	types.Action{
+								Timestamp: last1min,	
+								Params:    "status = CRITICAL",
+								SuccessWait: "",
+								FailedRetry: "",},
 				},
 			},
-			isNodeReady: false,
+			expectedOK: true,
 		},
 		{
 			conds: []v1.NodeCondition{
@@ -108,8 +121,9 @@ func TestConditions(t *testing.T) {
 				},
 			},
 			node:        "fake-compute-node.dsv31.boxdc.net",
-			expectedBuf: nilAlert,
-			isNodeReady: true,
+			inclNotReady: true,
+			expectedBuf: nilAlert,		
+			expectedOK: false,
 		},
 		{
 			conds: []v1.NodeCondition{
@@ -131,50 +145,97 @@ func TestConditions(t *testing.T) {
 				},
 			},
 			node:        "fake-compute-node.dsv31.boxdc.net",
+			inclNotReady: true,
 			expectedBuf: nilAlert,
-			isNodeReady: true,
+			expectedOK: false,
 		},
 	}
 
-	for _, item := range cond_table {
-		buf, nodeStatus := checkConditions(item.conds, item.node, frequency)
+	for _, item := range condTable {
+		buf, nodeStatus := conditionsFilter(item.conds, item.node, condOptions, item.inclNotReady)
+		//t.Logf("%+v, %v",buf, item.expectedBuf)
 		if !reflect.DeepEqual(buf, item.expectedBuf) {
 			t.Errorf("Returned: %+v \n Expected: %+v", buf, item.expectedBuf)
 		}
-		if item.isNodeReady != nodeStatus {
+		if item.expectedOK != nodeStatus {
 			t.Error("Node status is not incorrect")
 		}
 	}
 
 }
 
-func TestLabels(t *testing.T) {
-	labels_table := []struct {
+func TestLabelExcludeFilter(t *testing.T) {
+	exclLabelOptions := viper.New()
+	exclLabelOptions.SetDefault("exclude.key", "maintenance.box.com/source")
+	exclLabelOptions.SetDefault("exclude.not_val", "npd")
+
+
+	labelsTable := []struct {
 		labels map[string]string
-		result string
+		result bool
 	}{
 		{
 			labels: map[string]string{
 				"maintenance.box.com/source": "npd",
 				"box.com/pool":               "calico"},
-			result: "npd_maint",
+			result: true,
 		},
 		{
 			labels: map[string]string{
 				"maintenance.box.com/source": "user_rajsingh",
 				"box.com/pool":               "calico"},
-			result: "non_npd_maint",
+			result: false,
 		},
 		{
 			labels: map[string]string{
 				"box.com/calico-pod": "true",
 				"box.com/pool":       "calico"},
-			result: "no_maint",
+			result: true,
 		},
 	}
 
-	for _, l := range labels_table {
-		r := checkLabels(l.labels)
+	for _, l := range labelsTable {
+		r := labelExcludeFilter(l.labels, exclLabelOptions)
+		//t.Logf("%v", r)
+		if r != l.result {
+			t.Error("Unexpected result")
+		}
+	}
+}
+
+func TestLabelIncludeFilter(t *testing.T) {
+	inclLabelOptions := viper.New()
+	inclLabelOptions.SetDefault("include.key", "maintenance.box.com/source")
+	inclLabelOptions.SetDefault("include.match_val", "node-alert-worker-.*")
+
+
+	labelsTable := []struct {
+		labels map[string]string
+		result bool
+	}{
+		{
+			labels: map[string]string{
+				"maintenance.box.com/source": "node-alert-worker-2289751211-qhmkd",
+				"box.com/pool":               "calico"},
+			result: true,
+		},
+		{
+			labels: map[string]string{
+				"maintenance.box.com/source": "user_rajsingh",
+				"box.com/pool":               "calico"},
+			result: false,
+		},
+		{
+			labels: map[string]string{
+				"box.com/calico-pod": "true",
+				"box.com/pool":       "calico"},
+			result: false,
+		},
+	}
+
+	for _, l := range labelsTable {
+		r := labelIncludeFilter(l.labels, inclLabelOptions)
+		//t.Logf("%v", r)
 		if r != l.result {
 			t.Error("Unexpected result")
 		}
