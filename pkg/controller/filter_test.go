@@ -21,8 +21,16 @@ func TestConditions(t *testing.T) {
 	last25hour := now.Add(time.Hour * time.Duration(-25))
 
 	condOptions := viper.New()
-	condOptions.SetDefault("match", "NPD-.*")
-	condOptions.SetDefault("interval","24h")
+	condOptions.Set("options.match", "NPD-.*")
+	condOptions.Set("options.interval","24h")
+	condOptions.Set("name.npd-kubeletcertexpiring.action", "test1.yml")
+	condOptions.Set("name.npd-kubeletcertexpiring.success_wait", "1h")
+	condOptions.Set("name.npd-kubeletcertexpiring.failed_retry", "3")
+	condOptions.Set("name.npd-kubeletisdown.action", "test1.yml")
+	condOptions.Set("name.npd-kubeletisdown.success_wait", "1h")
+	condOptions.Set("name.npd-kubeletisdown.failed_retry", "3")
+	//condOptions.Set("condition.Name.NPD-KubeletCertExpiring", map[string]string{"action": "test1.yml"})
+	t.Logf("%+v",condOptions)
 
 	//frequency, _ := time.ParseDuration("24h")
 	condTable := []struct {
@@ -59,10 +67,11 @@ func TestConditions(t *testing.T) {
 					Node:      "fake-compute-node.dsv31.boxdc.net",
 					Condition: "NPD-KubeletCertExpiring",
 					Attr:     types.Action{
+									Action: "test1.yml",
 									Timestamp: last1min,
 									Params:    "status = OK threshold_days = 60 result_days = 280",
-									SuccessWait: "",
-									FailedRetry: "",},
+									SuccessWait: "1h",
+									FailedRetry: "3",},
 				},
 			},
 			expectedOK: true,	
@@ -93,10 +102,11 @@ func TestConditions(t *testing.T) {
 					Node:      "fake-compute-node.dsv31.boxdc.net",
 					Condition: "NPD-KubeletIsDown",
 					Attr:	types.Action{
+								Action: "test1.yml",
 								Timestamp: last1min,	
 								Params:    "status = CRITICAL",
-								SuccessWait: "",
-								FailedRetry: "",},
+								SuccessWait: "1h",
+								FailedRetry: "3",},
 				},
 			},
 			expectedOK: true,
@@ -123,7 +133,7 @@ func TestConditions(t *testing.T) {
 			node:        "fake-compute-node.dsv31.boxdc.net",
 			inclNotReady: true,
 			expectedBuf: nilAlert,		
-			expectedOK: false,
+			expectedOK: true,
 		},
 		{
 			conds: []v1.NodeCondition{
@@ -147,7 +157,7 @@ func TestConditions(t *testing.T) {
 			node:        "fake-compute-node.dsv31.boxdc.net",
 			inclNotReady: true,
 			expectedBuf: nilAlert,
-			expectedOK: false,
+			expectedOK: true,
 		},
 	}
 
