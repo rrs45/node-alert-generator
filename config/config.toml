@@ -9,7 +9,6 @@ namespace = "node-problem-detector"
 server = "0.0.0.0"
 port = 8080
 
-
 [config_map]
 name = "npd-alerts"
 #ConfigMap update interval
@@ -30,15 +29,21 @@ match = "NPD-.*"
 interval = "25h" # h stands for hours, s stands for seconds
 
 #Node conditions to Actions mapping
-[condition.Name.NPD-PuppetRunDelayed]
-Action = "test1.yml"
-SuccessWait = "1m"
-FailedRetry = "2"
+[condition.name.npd-puppetrundelayed]
+name = "NPD-PuppetRunDelayed"
+action = "test1.yml"
+success_wait = "1m"
+failed_retry = "2"
 
-[condition.Name.NPD-ChronyIssue]
-Action = "test1.yml"
-SuccessWait = "1m"
-FailedRetry = "2"
+[condition.name.npd-chronyissue]
+name = "NPD-ChronyIssue"
+action = "test1.yml"
+success_wait = "1m"
+failed_retry = "2"
 
-
+[condition.name.node-not-ready]
+name = "Node-Not-Ready"
+action = "test1.yml"
+success_wait = "1m"
+failed_retry = "2"
 

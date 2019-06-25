@@ -2,6 +2,7 @@ package controller
 
 import (
 	"regexp"
+	"strings"
 	"time"
 	v1 "k8s.io/api/core/v1"
 	"github.com/spf13/viper"
@@ -81,20 +82,23 @@ func labelIncludeFilter(labels map[string]string, labelFilter *viper.Viper) (boo
 	return false
 }
 
+//Get not ready nodes 
 func conditionsFilter(conditions []v1.NodeCondition, nodeName string, condFilter *viper.Viper,  inclNotReady bool) ([]types.Alert, bool) {
 	var includeNode bool
 	var buf []types.Alert
 	var item types.Alert
+
 	for _, condition := range conditions {
+		condLower := strings.ToLower(string(condition.Type))
 		matched, _ := regexp.MatchString(condFilter.GetString("options.match"), string(condition.Type))
-		if matched && condition.Status == "True" && time.Since(condition.LastHeartbeatTime.Time) < condFilter.GetDuration("options.interval") && condFilter.IsSet("Name." + string(condition.Type)){
+		if matched && condition.Status == "True" && time.Since(condition.LastHeartbeatTime.Time) < condFilter.GetDuration("options.interval") && condFilter.IsSet("name." + condLower){
 			item.Node = nodeName
 			item.Condition = string(condition.Type)
 			item.Attr.Timestamp = condition.LastHeartbeatTime.Time
 			item.Attr.Params = condition.Message
-			item.Attr.Action = condFilter.GetString("Name." + string(condition.Type) + ".Action" )
-			item.Attr.SuccessWait = condFilter.GetString("Name." + string(condition.Type) + ".SuccessWait" )
-			item.Attr.FailedRetry = condFilter.GetString("Name." + string(condition.Type) + ".FailedRetry" )
+			item.Attr.Action = condFilter.GetString("name." + string(condition.Type) + ".action" )
+			item.Attr.SuccessWait = condFilter.GetString("name." + string(condition.Type) + ".success_wait" )
+			item.Attr.FailedRetry = condFilter.GetString("name." + string(condition.Type) + ".failed_retry" )
 			buf = append(buf, item)
 		} else if condition.Type == "Ready" {
 			if  inclNotReady{
@@ -108,5 +112,14 @@ func conditionsFilter(conditions []v1.NodeCondition, nodeName string, condFilter
 			}
 		} 
 	}
+	/*if len(buf) == 0 && inclNotReady && condFilter.IsSet("Name.Node-Not-Ready"){
+			//Only Not Ready nodes with no failing NPD checks
+			item.Node = nodeName
+			item.Condition = "Node-Not-Ready"
+			item.Attr.Action = condFilter.GetString("Name.Node-Not-Ready.Action" )
+			item.Attr.SuccessWait = condFilter.GetString("Name.Node-Not-Ready.SuccessWait" )
+			item.Attr.FailedRetry = condFilter.GetString("Name.Node-Not-Ready.FailedRetry" )
+			buf = append(buf, item)
+	}*/
 return buf, includeNode
 }
