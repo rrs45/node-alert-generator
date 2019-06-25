@@ -13,7 +13,7 @@ cd $godir/box-autoremediation
 mkdir bin
 go get ./...
 go test -v ./pkg/...
-CGO_ENABLED=1 GOOS=linux go build -o bin/node-alert-generator cmd/node_alert_generator.go
+CGO_ENABLED=1 GOOS=linux go build -o bin/node-alert-generator -ldflags '-w' cmd/node_alert_generator.go
 
 mkdir -p /git-root/build
 mv bin/node-alert-generator /git-root/build

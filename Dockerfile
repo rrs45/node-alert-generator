@@ -6,4 +6,5 @@ LABEL com.box.name="node-alert-generator"
 ENV container=docker
 
 ADD ./build/node-alert-generator /node-alert-generator
-RUN chown container:container /node-alert-generator
+ADD config /config
+RUN chown -R container:container /config  && chown container:container /node-alert-generator

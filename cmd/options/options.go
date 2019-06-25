@@ -25,6 +25,7 @@ func NewConfigFromFile(configFile string) (*viper.Viper, error) {
 //Config defines configuration parameters
 type Config struct {
 	File string
+	KubeAPIURL string
 }
 
 //GetConfig returna new config file
@@ -34,8 +35,8 @@ func GetConfig() *Config {
 
 //AddFlags takes config file input
 func (c *Config) AddFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.File, "file", "/home/rajsingh/go/src/github.com/box-autoremediation/config/config.toml",
-		"Configuration file path")
+	fs.StringVar(&c.File, "file", "/home/rajsingh/go/src/github.com/box-autoremediation/config/config.toml", "Configuration file path")
+	fs.StringVar(&c.KubeAPIURL, "apiserver-override", "", "URL of the kubernetes api server")
 }
 
 //ValidOrDie validates some of the config parameters
