@@ -112,7 +112,7 @@ func conditionsFilter(conditions []v1.NodeCondition, nodeName string, condFilter
 			}
 		} 
 	}
-	/*if len(buf) == 0 && inclNotReady && condFilter.IsSet("Name.Node-Not-Ready"){
+	if len(buf) == 0 && inclNotReady && condFilter.IsSet("Name.Node-Not-Ready"){
 			//Only Not Ready nodes with no failing NPD checks
 			item.Node = nodeName
 			item.Condition = "Node-Not-Ready"
@@ -120,6 +120,6 @@ func conditionsFilter(conditions []v1.NodeCondition, nodeName string, condFilter
 			item.Attr.SuccessWait = condFilter.GetString("Name.Node-Not-Ready.SuccessWait" )
 			item.Attr.FailedRetry = condFilter.GetString("Name.Node-Not-Ready.FailedRetry" )
 			buf = append(buf, item)
-	}*/
+	}
 return buf, includeNode
 }

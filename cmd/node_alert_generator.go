@@ -35,11 +35,13 @@ func initClient(kubeAPI string) (*kubernetes.Clientset, error) {
 		return kubernetes.NewForConfig(config)
 	} 
 	kubeConfig, err := restclient.InClusterConfig()
+	
 	if err != nil {
 		panic(err)
 	}
 	if kubeAPI != "" {
 		kubeConfig.Host = kubeAPI
+		return kubernetes.NewForConfig(kubeConfig)
 	}
 	return kubernetes.NewForConfig(kubeConfig)
 }
@@ -87,7 +89,7 @@ func main() {
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-generator")
-	clientset, err := initClient(nago.GetString("KubeAPIServer"))
+	clientset, err := initClient(conf.KubeAPIURL)
 	if err != nil {
 		panic(err)
 	}

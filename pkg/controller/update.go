@@ -3,6 +3,7 @@ package controller
 import (
 	"time"
 	"encoding/json"
+	"reflect"
 
 	log "github.com/sirupsen/logrus"
 
@@ -18,7 +19,7 @@ import (
 func Update(client *kubernetes.Clientset, ns string, configMap string, interval string, ch <-chan types.Alert) {
 	bufCur := make(map[string]types.Action)
 	buf := make(map[string]string)
-	//bufPrev := make(map[string]string)
+	bufPrev := make(map[string]types.Action)
 	frequency, err := time.ParseDuration(interval)
 	if err != nil {
 		log.Fatal("Updater - Could not parse interval: ", err)
@@ -31,10 +32,10 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 		select {
 		case <-ticker.C:
 			log.Debugf("%+v %d",bufCur, len(bufCur))
-			/*eq := reflect.DeepEqual(bufPrev, bufCur)
+			eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
 				log.Info("Updater - No new entries found")
-			} else { */
+			} else { 
 				//Create config map
 				for cond, val := range bufCur {
 					rstr, err := json.Marshal(val)
@@ -67,8 +68,8 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 					}
 				}
 
-			//}
-			//bufPrev = bufCur
+			}
+			bufPrev = bufCur
 			bufCur = make(map[string]types.Action)
 		default:
 			select {
