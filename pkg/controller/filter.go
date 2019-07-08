@@ -14,7 +14,7 @@ import (
 func Filter(filterCh <-chan *v1.Node, labelch chan<- *v1.Node, alertCh chan<- types.Alert, conf *viper.Viper) {
 	for {
 		select {
-		case node := <-filterCh:
+		case node := <-filterCh:	
 		labelExcludeFilterOK := labelExcludeFilter(node.GetLabels(), conf.Sub("label_filter"))
 		labelIncludeFilterOK := labelIncludeFilter(node.GetLabels(), conf.Sub("label_filter"))
 		conditions, nodeOK := conditionsFilter(node.Status.Conditions, node.Name, conf.Sub("condition"), conf.GetBool("node_status.include_not_ready"))

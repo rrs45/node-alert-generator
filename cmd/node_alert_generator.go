@@ -85,7 +85,7 @@ func main() {
 	srv := startHTTPServer(nago.GetString("healthcheck.server"), nago.GetString("healthcheck.port"))
 
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 
 	// Create an rest client not targeting specific API version
 	log.Info("Calling initClient for node-alert-generator")
@@ -101,7 +101,7 @@ func main() {
 	//Watcher
 	go func() {
 		log.Info("Starting controller for node-alert-generator")
-		controller.Start(clientset, nago.GetBool("node_status.cordoned"), filterCh)
+		controller.Start(clientset, filterCh)
 		log.Info("Stopping controller for node-alert-generator")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
@@ -130,11 +130,23 @@ func main() {
 		}
 		wg.Done()
 	}()
-
+	
+	//ConfigMap updater
 	go func() {
 		log.Info("Starting updater for node-alert-generator")
 		controller.Update(clientset, nago.GetString("namespace"), nago.GetString("config_map.name"), nago.GetString("config_map.frequency"), alertch)
 		log.Info("Stopping updater for node-alert-generator")
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Fatalf("Could not stop http server: %s", err)
+		}
+		wg.Done()
+	}()
+
+	//Get Cordoned
+	go func() {
+		log.Info("Starting cordoned getter for node-alert-generator")
+		controller.CheckCordoned(clientset, nago.GetDuration("node_status.cordoned_within"), nago.GetStringMapString("condition.name.node-cordoned"), nago.GetDuration("node_status.cordoned_check_frequency"), alertch)
+		log.Info("Stopping cordoned getter for node-alert-generator")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
 		}

@@ -19,7 +19,6 @@ type AlertGeneratorController struct {
 	informerFactory     informers.SharedInformerFactory
 	nodeInformer        coreInformers.NodeInformer
 	filterCh       		chan<- *v1.Node
-	cordoned             bool
 }
 
 // Run starts shared informers and waits for the shared informer cache to
@@ -41,13 +40,10 @@ func (c *AlertGeneratorController) nodeAdd(obj interface{}) {
 
 func (c *AlertGeneratorController) nodeUpdate(oldN, newN interface{}) {
 	newNode := newN.(*v1.Node)
-	//Check if node is cordon'd 
-	if !c.cordoned {
-		//Exclude cordon'd nodes
-		if !newNode.Spec.Unschedulable {
-			c.filterCh <- newNode
-		}	
-	}
+	//Exclude cordon'd nodes
+	if !newNode.Spec.Unschedulable {
+		c.filterCh <- newNode
+	}	
 	//Include both cordon'd and uncordon'd nodes
 	c.filterCh <- newNode
 }
@@ -59,14 +55,13 @@ func (c *AlertGeneratorController) nodeDelete(obj interface{}) {
 
 //NewAlertGeneratorController creates a initializes AlertGeneratorController struct
 //and adds event handler functions
-func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, cordoned bool, filterCh chan<- *v1.Node ) *AlertGeneratorController {
+func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory, filterCh chan<- *v1.Node ) *AlertGeneratorController {
 	nodeInf := informerFactory.Core().V1().Nodes()
 
 	c := &AlertGeneratorController{
 		informerFactory:     informerFactory,
 		nodeInformer:        nodeInf,
 		filterCh:             filterCh,
-		cordoned:             cordoned,
 	}
 	nodeInf.Informer().AddEventHandler(
 		// Your custom resource event handlers.
@@ -83,7 +78,7 @@ func NewAlertGeneratorController(informerFactory informers.SharedInformerFactory
 }
 
 //Start starts the controller
-func Start(clientset *kubernetes.Clientset, cordoned bool, filterCh chan<- *v1.Node) {
+func Start(clientset *kubernetes.Clientset, filterCh chan<- *v1.Node) {
 
 	//Set logrus
 	log.SetFormatter(&log.JSONFormatter{})
@@ -92,7 +87,7 @@ func Start(clientset *kubernetes.Clientset, cordoned bool, filterCh chan<- *v1.N
 	log.Info("Watcher - Creating informer factory for alert-generator ")
 	//Create shared cache informer which resync's every 24hrs
 	factory := informers.NewFilteredSharedInformerFactory(clientset, time.Hour*24, "", func(opt *metav1.ListOptions) { opt.LabelSelector = "box.com/pool in (generic, calico)" })
-	controller := NewAlertGeneratorController(factory, cordoned,  filterCh)
+	controller := NewAlertGeneratorController(factory, filterCh)
 	stop := make(chan struct{})
 	defer close(stop)
 	err := controller.Run(stop)

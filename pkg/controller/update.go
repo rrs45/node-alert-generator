@@ -40,7 +40,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 				for cond, val := range bufCur {
 					rstr, err := json.Marshal(val)
 					if err != nil {
-						log.Errorf("ConfigMap Updater - unable to marshal %+v: %e", val, err)
+						log.Errorf("ConfigMap Updater - unable to marshal %+v: %v", val, err)
 					} else {
 						buf[cond] = string(rstr)
 					}
@@ -102,7 +102,7 @@ func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
 			if err2 != nil {
 				if count < 3 {
 					log.Infof("Updater - Could not create configmap tried %d times, retrying after 1000ms: %s", count, err2)
-					time.Sleep(100 * time.Millisecond)
+					time.Sleep(1000 * time.Millisecond)
 					continue
 				} else {
 					log.Errorf("Updater - Could not create configmap after 3 attempts: %s", err2)

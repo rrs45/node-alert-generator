@@ -45,17 +45,17 @@ func ValidOrDie(ago *viper.Viper) {
 	_, err := time.ParseDuration(ago.GetString("config_map.frequency"))
 	if err != nil {
 		log.Errorf("Options - Incorrect config_map.frequency: %v ", err)
+		log.Panic("Incorrect options")
 	}
 	dir, _ := filepath.Split(ago.GetString("log_file"))
 	_, err1 := os.Stat(dir)
 	if err1 != nil {
 		log.Errorf("Options - Directory does not exist: %v ", err1)
+		log.Panic("Incorrect options")
 	} 
 	_, err2 := time.ParseDuration(ago.GetString("condition.options.interval"))
 	if err2 != nil {
 		log.Errorf("Options - conditions_filter.interval: %v ", err)
-	}
-	if err != nil || err1 != nil || err2 != nil {
 		log.Panic("Incorrect options")
 	}
 }
