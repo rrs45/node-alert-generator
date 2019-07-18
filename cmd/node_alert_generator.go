@@ -145,7 +145,7 @@ func main() {
 	//Get Cordoned
 	go func() {
 		log.Info("Starting cordoned getter for node-alert-generator")
-		controller.CheckCordoned(clientset, nago.GetDuration("node_status.cordoned_duration"), nago.GetStringMapString("condition.name.node-cordoned"), nago.GetDuration("node_status.cordoned_check_frequency"), alertch)
+		controller.CheckCordoned(clientset, nago.GetStringMapString("condition.name.node-cordoned"), nago, alertch)
 		log.Info("Stopping cordoned getter for node-alert-generator")
 		if err := srv.Shutdown(context.Background()); err != nil {
 			log.Fatalf("Could not stop http server: %s", err)
