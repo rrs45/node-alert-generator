@@ -30,7 +30,7 @@ for {
 		if _, ok := node.Labels["maintenance.box.com/source"]; ok {
 			cordonTime, err := strconv.Atoi(strings.Split(node.Labels["maintenance.box.com/drainTimestamp"], ".")[0])
 			if err != nil {
-				log.Errorf("Cordoned - Could not convert maintenance.box.com/drainTimestamp to int: %v", err)
+				log.Errorf("Cordoned - Ignoring %s could not convert maintenance.box.com/drainTimestamp to int: , %v", node.Name, err)
 				continue
 			}
 			timeStamp := time.Unix(int64(cordonTime),0)
