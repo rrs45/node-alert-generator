@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/box-autoremediation/pkg/controller/types"
 
+	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -14,9 +15,9 @@ import (
 //CheckCordoned function gets cordon'd nodes periodically,
 // filters then one's which have maintenance labels defined and if drainTimestamp is older than 
 // defined threhold.
-func CheckCordoned(client *kubernetes.Clientset, dur time.Duration, cond map[string]string, frequency time.Duration, alertCh chan<- types.Alert) {
+func CheckCordoned(client *kubernetes.Clientset, cond map[string]string, config *viper.Viper, alertCh chan<- types.Alert) {
 
-ticker := time.NewTicker(frequency)
+ticker := time.NewTicker(config.GetDuration("cordoned.check_frequency"))
 for {
 	select {
 	case <-ticker.C:
@@ -33,8 +34,8 @@ for {
 				continue
 			}
 			timeStamp := time.Unix(int64(cordonTime),0)
-			if time.Since(timeStamp) > dur {
-				log.Infof("Cordoned - Found nodes which cordon'd more than %s ago", dur.String())
+			if time.Since(timeStamp) > config.GetDuration("cordoned.duration") {
+				log.Infof("Cordoned - Found nodes which cordon'd more than %s ago", config.GetString("cordoned.duration"))
 				alertCh <- types.Alert{
 								Node: node.Name,
 								Condition: "Node-Cordoned",
