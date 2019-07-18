@@ -31,7 +31,7 @@ match = "NPD-.*"
 #Only consider conditions whose last heartbeat time is within this interval
 interval = "25h" # h stands for hours, s stands for seconds
 
-Node conditions to Actions mapping
+#Node conditions to Actions mapping
 [condition.name.npd-kubeletproxycertexpiring]
 name = "NPD-KubeletProxyCertExpiring"
 action = "plays/auto-remediation/knr_kube_cert_expiring_v1.yml"
