@@ -25,7 +25,7 @@ func LabelNode(client *kubernetes.Clientset, ch <-chan *v1.Node, nodeLabel strin
 			l := n.GetLabels()
 			label := strings.Split(nodeLabel, "=")
 			if _, ok := l[label[0]]; ok {
-				log.Info("Labeller - Label exists hence ignoring")
+				log.Infof("Labeller - Label exists hence ignoring %v", n.Name )
 				continue
 			}
 			l[label[0]] = label[1]

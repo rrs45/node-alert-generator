@@ -178,6 +178,7 @@ func TestLabelExcludeFilter(t *testing.T) {
 	exclLabelOptions := viper.New()
 	exclLabelOptions.SetDefault("exclude.key", "maintenance.box.com/source")
 	exclLabelOptions.SetDefault("exclude.not_val", "npd")
+	exclLabelOptions.SetDefault("exclude.not_match", "node-alert-worker.*")
 
 
 	labelsTable := []struct {
@@ -202,6 +203,18 @@ func TestLabelExcludeFilter(t *testing.T) {
 				"box.com/pool":       "calico"},
 			result: true,
 		},
+		{
+			labels: map[string]string{
+				"maintenance.box.com/source": "node-alert-worker-2551377941-g2x3j",
+				"box.com/pool":       "calico"},
+			result: true,
+		},
+		{
+			labels: map[string]string{
+				"maintenance.box.com/source": "node-worker-2551377941-g2x3j",
+				"box.com/pool":       "calico"},
+			result: false,
+		},
 	}
 
 	for _, l := range labelsTable {
@@ -218,6 +231,7 @@ func TestLabelIncludeFilter(t *testing.T) {
 	inclLabelOptions.SetDefault("include.key", "maintenance.box.com/source")
 	inclLabelOptions.SetDefault("include.match_val", "node-alert-worker-.*")
 
+	t.Logf("%+v",inclLabelOptions)
 
 	labelsTable := []struct {
 		labels map[string]string
