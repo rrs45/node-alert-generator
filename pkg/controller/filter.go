@@ -35,7 +35,7 @@ func Filter(filterCh <-chan *v1.Node, labelch chan<- *v1.Node, alertCh chan<- ty
 } 
 
 func labelExcludeFilter(labels map[string]string, labelFilter *viper.Viper) (bool) {
-	if  !labelFilter.IsSet("exclude"){
+	if  !labelFilter.IsSet("exclude.key"){
 		//No exclude labels defined, do not ignore node
 		return true
 	}
@@ -45,10 +45,11 @@ func labelExcludeFilter(labels map[string]string, labelFilter *viper.Viper) (boo
 				//Node has excluded key but included value, do not ignore this node
 				return true
 			} else if labelFilter.IsSet("exclude.not_match") {
-				if matched, _ := regexp.MatchString(labelFilter.GetString("include.match_val"), val); matched {
+				if matched, _ := regexp.MatchString(labelFilter.GetString("exclude.not_match"), val); matched {
 					//Node has excluded key but included regex match value, do not ignore this node
 					return true
 				}
+				
 			}
 			//Node has excluded key but not included value, ignore this node
 			return false
