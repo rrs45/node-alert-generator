@@ -9,8 +9,11 @@ export GOPATH=/tmp/go
 
 mv cmd $godir/box-autoremediation/
 mv pkg $godir/box-autoremediation/
+mv go.mod $godir/box-autoremediation/
+
 cd $godir/box-autoremediation
 mkdir bin
+export GO111MODULE=on
 go get ./...
 go test -v ./pkg/...
 CGO_ENABLED=1 GOOS=linux go build -o bin/node-alert-generator -ldflags '-w' cmd/node_alert_generator.go
