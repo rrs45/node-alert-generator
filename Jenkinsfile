@@ -13,6 +13,7 @@ pipeline {
     }
     stages {
         stage('Build') {
+            when { branch 'master'  }
             steps {
                 githubCheck(
                     'Build Image': {
@@ -22,8 +23,8 @@ pipeline {
                 )
             }
         }
-       stage('Deploy To Sandbox') {
-           // when { branch 'master'  }
+       /*stage('Deploy To Sandbox') {
+            when { branch 'master'  }
             steps {
                 deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
             }
@@ -33,7 +34,7 @@ pipeline {
             steps {
                 deploy cluster: 'dsv31', app: SKYNET_APP, watch: false, canary: false
             }
-        } 
+        } */
        stage('Deploy To VSV1') {
             when { branch 'master'  }
             steps {
