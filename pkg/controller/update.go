@@ -3,7 +3,7 @@ package controller
 import (
 	"time"
 	"encoding/json"
-	"reflect"
+	"reflect" 
 
 	log "github.com/sirupsen/logrus"
 
@@ -12,6 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	k8types "k8s.io/apimachinery/pkg/types"
 )
 
 //Update creates config map if it doesnt exist and
@@ -67,6 +69,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 						break
 					}
 				}
+				labelConfigMap(configmapClient, configMap)
 
 			}
 			bufPrev = bufCur
@@ -114,5 +117,31 @@ func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
 		}
 	} else {
 		log.Infof("Updater - %s configmap already exists", name)
+	}
+}
+
+func labelConfigMap(configmapClient corev1.ConfigMapInterface,name string) {
+	foundCM, err := configmapClient.Get(name, metav1.GetOptions{})
+	if err != nil {
+		log.Infof("Updater - %s configmap not found", name)
+	} else {
+		oldData, err1 := json.Marshal(foundCM)
+			if err1 != nil {
+				log.Error("Labeler - could not marshal old node object", err1)
+			}
+		foundCM.SetLabels(map[string]string{"autoremediation":"yes"})
+		newData, err := json.Marshal(foundCM)
+		if err != nil {
+			log.Error(err, "Updater - could not marshal new node object")
+		}
+		patch, err := strategicpatch.CreateTwoWayMergePatch(oldData, newData, foundCM)
+		if err != nil {
+			log.Error("Updater - could not create two way merge patch ", err)
+		}
+		log.Info("Updater - Update label for ", foundCM.Name)
+		_, err = configmapClient.Patch(foundCM.Name, k8types.MergePatchType, patch)
+		if err != nil {
+			log.Error("Updater -  could not patch configmap", err)
+		}
 	}
 }

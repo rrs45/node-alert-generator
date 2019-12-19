@@ -23,10 +23,11 @@ func Filter(filterCh <-chan *v1.Node, labelch chan<- *v1.Node, alertCh chan<- ty
 		log.Debugf("Filter - %v , %v",labelExcludeFilterOK, labelIncludeFilterOK)
 		if labelExcludeFilterOK && labelIncludeFilterOK && nodeOK && len(conditions) > 0 {
 			for _, alert := range conditions {
-				//Send alert
+				log.Infof("Filter - Sending %v_%v to updater", alert.Node, alert.Condition)
 				alertCh <- alert
 				}
 			if conf.GetBool("SetNodeLabel") {
+				//log.Infof("Filter - Sending %v to labeller", node.Name)
 				labelch <- node
 			}
 		}
