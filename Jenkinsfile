@@ -38,13 +38,13 @@ pipeline {
        stage('Deploy To VSV1') {
             when { branch 'master'  }
             steps {
-                deploy cluster: 'dsv31', app: SKYNET_APP, watch: false, canary: false
+                deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
             }
         }
         stage('Deploy To LV7') {
             when { branch 'master'  }
             steps {
-                deploy cluster: 'dsv31', app: SKYNET_APP, watch: false, canary: false
+                deploy cluster: 'lv7', app: SKYNET_APP, watch: false, canary: false
             }
         }
 
