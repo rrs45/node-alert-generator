@@ -70,7 +70,6 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 					}
 				}
 				labelConfigMap(configmapClient, configMap)
-
 			}
 			bufPrev = bufCur
 			bufCur = make(map[string]types.Action)
