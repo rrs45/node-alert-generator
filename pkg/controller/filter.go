@@ -93,7 +93,7 @@ func conditionsFilter(conditions []v1.NodeCondition, nodeName string, condFilter
 	for _, condition := range conditions {
 		condLower := strings.ToLower(string(condition.Type))
 		matched, _ := regexp.MatchString(condFilter.GetString("options.match"), string(condition.Type))
-		if matched && condition.Status == "True" && time.Since(condition.LastHeartbeatTime.Time) < condFilter.GetDuration("options.interval") && condFilter.IsSet("name." + condLower){
+		if matched && condition.Status != "False" && time.Since(condition.LastHeartbeatTime.Time) < condFilter.GetDuration("options.interval") && condFilter.IsSet("name." + condLower){
 			item.Node = nodeName
 			item.Condition = string(condition.Type)
 			item.Attr.Timestamp = condition.LastHeartbeatTime.Time

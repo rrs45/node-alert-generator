@@ -38,6 +38,12 @@ action = "plays/auto-remediation/knr_verify_disabled_v1.yml"
 success_wait = "2h"
 failed_retry = "3"
 
+[condition.name.npd-kubeletisdown]
+name = "NPD-KubeletIsDown"
+action = "plays/auto-remediation/knr_verify_disabled_v1.yml"
+success_wait = "2h"
+failed_retry = "3"
+
 [condition.name.npd-calicodown]
 name = "NPD-CalicoDown"
 action = "plays/auto-remediation/knr_verify_disabled_v1.yml"
