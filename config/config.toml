@@ -21,6 +21,10 @@ key = "maintenance.box.com/source"
 not_val = "npd"
 not_match = "node-alert-worker.*"
 
+[label_filter.include]
+key = "box.com/pool"
+match_val = "calico"
+
 #Settings for recovering cordoned node
 [cordoned]
 duration = "5h"  #maintenance.box.com/draintime needs to be more than this period
