@@ -228,8 +228,8 @@ func TestLabelExcludeFilter(t *testing.T) {
 
 func TestLabelIncludeFilter(t *testing.T) {
 	inclLabelOptions := viper.New()
-	inclLabelOptions.SetDefault("include.key", "maintenance.box.com/source")
-	inclLabelOptions.SetDefault("include.match_val", "node-alert-worker-.*")
+	inclLabelOptions.SetDefault("include.key", "box.com/pool")
+	inclLabelOptions.SetDefault("include.match_val", "calico")
 
 	t.Logf("%+v",inclLabelOptions)
 
@@ -240,20 +240,20 @@ func TestLabelIncludeFilter(t *testing.T) {
 		{
 			labels: map[string]string{
 				"maintenance.box.com/source": "node-alert-worker-2289751211-qhmkd",
-				"box.com/pool":               "calico"},
-			result: true,
+				"box.com/pool":               "master"},
+			result: false,
 		},
 		{
 			labels: map[string]string{
 				"maintenance.box.com/source": "user_rajsingh",
 				"box.com/pool":               "calico"},
-			result: false,
+			result: true,
 		},
 		{
 			labels: map[string]string{
 				"box.com/calico-pod": "true",
 				"box.com/pool":       "calico"},
-			result: false,
+			result: true,
 		},
 	}
 
