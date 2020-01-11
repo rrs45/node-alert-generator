@@ -13,7 +13,7 @@ pipeline {
     }
     stages {
         stage('Build') {
-            when { branch 'master'  }
+            //when { branch 'master'  }
             steps {
                 githubCheck(
                     'Build Image': {
@@ -23,8 +23,8 @@ pipeline {
                 )
             }
         }
-       /*stage('Deploy To Sandbox') {
-            when { branch 'master'  }
+       stage('Deploy To Sandbox') {
+            when { branch 'rajsingh'  }
             steps {
                 deploy cluster: 'sandbox', app: SKYNET_APP, watch: false, canary: false
             }
@@ -40,7 +40,7 @@ pipeline {
             steps {
                 deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
             }
-        }*/
+        }
 
         stage('Deploy To LV7') {
             when { branch 'master'  }
