@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1" 
 )
 
 //CheckCordoned function gets cordon'd nodes periodically,
@@ -21,12 +21,13 @@ ticker := time.NewTicker(config.GetDuration("cordoned.check_frequency"))
 for {
 	select {
 	case <-ticker.C:
-	nodeList, err  := client.CoreV1().Nodes().List(metav1.ListOptions{FieldSelector: "spec.unschedulable=true" })
+	nodeList, err  := client.CoreV1().Nodes().List(metav1.ListOptions{LabelSelector: "box.com/pool in (generic, calico)", FieldSelector: "spec.unschedulable=true" })
 	if err != nil {
 		log.Errorf("Cordoned - Could not list nodes: %v",err)
 		continue
 	}
 	for _, node := range nodeList.Items {
+		
 		if _, ok := node.Labels["maintenance.box.com/source"]; ok {
 			cordonTime, err := strconv.Atoi(strings.Split(node.Labels["maintenance.box.com/drainTimestamp"], ".")[0])
 			if err != nil {
