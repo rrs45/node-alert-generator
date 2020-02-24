@@ -3,7 +3,7 @@
 pipeline {
     agent { label 'skynet' }
     options {
-        timeout(time: 1, unit: 'HOURS')
+        timeout(time: 10, unit: 'HOURS')
     }
     environment {
         SKYNET_APP = 'node-alert-generator'
@@ -35,28 +35,55 @@ pipeline {
                 deploy cluster: 'dsv31', app: SKYNET_APP, watch: false, canary: false
             }
         } 
+      stage('Deploy To DSV31-K8S-C1') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'dsv31-k8s-c1', app: SKYNET_APP, watch: false, canary: false
+            }
+        } 
        stage('Deploy To VSV1') {
             when { branch 'master'  }
             steps {
                 deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
             }
         }
-
-        stage('Deploy To LV7') {
-            when { branch 'master'  }
-            steps {
-                deploy cluster: 'lv7', app: SKYNET_APP, watch: false, canary: false
-            }
-        }
-
         stage('Deploy To VSV1-K8S-C1') {
             when { branch 'master'  }
             steps {
                 deploy cluster: 'vsv1-k8s-c1', app: SKYNET_APP, watch: false, canary: false
             }
         }
+        stage('Deploy To US-RNO-A-K8S-C1') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'us-rno-a-k8s-c1', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
+        stage('Deploy To US-RNO-B-K8S-C2') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'us-rno-b-k8s-c2', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
+        stage('Deploy To LV7-K8S-C1') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'lv7-k8s-c1', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
+        stage('Deploy To US-LAS-B-K8S-C1') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'us-las-b-k8s-c1', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
+        stage('Deploy To LV7') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'lv7', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
         
-
     }
         post {
         always {
