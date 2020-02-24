@@ -36,11 +36,17 @@ match = "NPD-.*"
 interval = "25h" # h stands for hours, s stands for seconds
 
 #Node conditions to Actions mapping
-#[condition.name.npd-kubeletproxycertexpiring]
-#name = "NPD-KubeletProxyCertExpiring"
-#action = "plays/auto-remediation/knr_verify_disabled_v1.yml"
-#success_wait = "2h"
-#failed_retry = "3"
+[condition.name.npd-kubeletproxycertexpiring]
+name = "NPD-KubeletProxyCertExpiring"
+action = "plays/auto-remediation/knr_kube_cert_expiring_v1.yml"
+success_wait = "2h"
+failed_retry = "3"
+#
+[condition.name.npd-kubeletcertexpiring]
+name = "NPD-KubeletCertExpiring"
+action = "plays/auto-remediation/knr_kube_cert_expiring_v1.yml"
+success_wait = "2h"
+failed_retry = "3"
 #
 #[condition.name.npd-kubeletisdown]
 #name = "NPD-KubeletIsDown"
