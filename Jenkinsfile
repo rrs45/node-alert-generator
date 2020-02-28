@@ -65,10 +65,10 @@ pipeline {
                 deploy cluster: 'us-rno-a-k8s-c1', app: SKYNET_APP, watch: false, canary: false
             }
         }
-        stage('Deploy To US-RNO-B-K8S-C2') {
+        stage('Deploy To US-RNO-A-K8S-C2') {
             when { branch 'master'  }
             steps {
-                deploy cluster: 'us-rno-b-k8s-c2', app: SKYNET_APP, watch: false, canary: false
+                deploy cluster: 'us-rno-a-k8s-c2', app: SKYNET_APP, watch: false, canary: false
             }
         }
         stage('Deploy To LV7-K8S-C1') {

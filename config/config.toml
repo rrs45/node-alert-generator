@@ -33,7 +33,7 @@ check_frequency = "1h"
 [condition.options]
 match = "NPD-.*"
 #Only consider conditions whose last heartbeat time is within this interval
-interval = "25h" # h stands for hours, s stands for seconds
+interval = "2h" # h stands for hours, s stands for seconds
 
 #Node conditions to Actions mapping
 [condition.name.npd-kubeletproxycertexpiring]
