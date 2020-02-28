@@ -1,5 +1,5 @@
 
-SetNodeLabel = true
+SetNodeLabel = false
 NodeLabel = "maintenance.box.com/source=npd"
 log_file = "/var/log/service/node-alert-generator.log"
 namespace = "node-alert-generator"

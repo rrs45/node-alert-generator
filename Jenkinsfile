@@ -53,6 +53,12 @@ pipeline {
                 deploy cluster: 'vsv1-k8s-c1', app: SKYNET_APP, watch: false, canary: false
             }
         }
+        stage('Deploy To LV7') {
+            when { branch 'master'  }
+            steps {
+                deploy cluster: 'lv7', app: SKYNET_APP, watch: false, canary: false
+            }
+        }
         stage('Deploy To US-RNO-A-K8S-C1') {
             when { branch 'master'  }
             steps {
@@ -77,12 +83,7 @@ pipeline {
                 deploy cluster: 'us-las-b-k8s-c1', app: SKYNET_APP, watch: false, canary: false
             }
         }
-        stage('Deploy To LV7') {
-            when { branch 'master'  }
-            steps {
-                deploy cluster: 'lv7', app: SKYNET_APP, watch: false, canary: false
-            }
-        }
+        
         
     }
         post {
