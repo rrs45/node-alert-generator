@@ -41,7 +41,7 @@ pipeline {
                 deploy cluster: 'dsv31-k8s-c1', app: SKYNET_APP, watch: false, canary: false
             }
         } 
-       stage('Deploy To VSV1') {
+      /* stage('Deploy To VSV1') {
             when { branch 'master'  }
             steps {
                 deploy cluster: 'vsv1', app: SKYNET_APP, watch: false, canary: false
@@ -83,7 +83,7 @@ pipeline {
                 deploy cluster: 'us-las-b-k8s-c1', app: SKYNET_APP, watch: false, canary: false
             }
         }
-        
+        */
         
     }
         post {
