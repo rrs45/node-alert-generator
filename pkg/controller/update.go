@@ -1,19 +1,19 @@
 package controller
 
 import (
-	"time"
 	"encoding/json"
-	"reflect" 
+	"reflect"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/box-autoremediation/pkg/controller/types"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8types "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	k8types "k8s.io/apimachinery/pkg/types"
 )
 
 //Update creates config map if it doesnt exist and
@@ -29,15 +29,16 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 	ticker := time.NewTicker(frequency)
 	configmapClient := client.CoreV1().ConfigMaps(ns)
 	initConfigMap(configmapClient, configMap)
+	labelConfigMap(configmapClient, configMap)
 
 	for {
 		select {
 		case <-ticker.C:
-			log.Debugf("%+v %d",bufCur, len(bufCur))
+			log.Debugf("%+v %d", bufCur, len(bufCur))
 			eq := reflect.DeepEqual(bufPrev, bufCur)
 			if eq {
 				log.Info("Updater - No new entries found")
-			} else { 
+			} else {
 				//Create config map
 				for cond, val := range bufCur {
 					rstr, err := json.Marshal(val)
@@ -69,7 +70,7 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 						break
 					}
 				}
-				labelConfigMap(configmapClient, configMap)
+				//labelConfigMap(configmapClient, configMap)
 			}
 			bufPrev = bufCur
 			bufCur = make(map[string]types.Action)
@@ -77,17 +78,17 @@ func Update(client *kubernetes.Clientset, ns string, configMap string, interval 
 			select {
 			case r := <-ch:
 				bufCur[r.Node+"_"+string(r.Condition)] = types.Action{
-															Timestamp: r.Attr.Timestamp,
-															Action:    r.Attr.Action,
-															Params:		r.Attr.Params,    
-															SuccessWait: r.Attr.SuccessWait,
-															FailedRetry: r.Attr.FailedRetry, }
+					Timestamp:   r.Attr.Timestamp,
+					Action:      r.Attr.Action,
+					Params:      r.Attr.Params,
+					SuccessWait: r.Attr.SuccessWait,
+					FailedRetry: r.Attr.FailedRetry}
 			default:
 				continue
 			}
 		}
 	}
-ticker.Stop()
+	ticker.Stop()
 }
 
 func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
@@ -119,16 +120,16 @@ func initConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
 	}
 }
 
-func labelConfigMap(configmapClient corev1.ConfigMapInterface,name string) {
+func labelConfigMap(configmapClient corev1.ConfigMapInterface, name string) {
 	foundCM, err := configmapClient.Get(name, metav1.GetOptions{})
 	if err != nil {
 		log.Infof("Updater - %s configmap not found", name)
 	} else {
 		oldData, err1 := json.Marshal(foundCM)
-			if err1 != nil {
-				log.Error("Labeler - could not marshal old node object", err1)
-			}
-		foundCM.SetLabels(map[string]string{"autoremediation":"yes"})
+		if err1 != nil {
+			log.Error("Labeler - could not marshal old node object", err1)
+		}
+		foundCM.SetLabels(map[string]string{"autoremediation": "yes"})
 		newData, err := json.Marshal(foundCM)
 		if err != nil {
 			log.Error(err, "Updater - could not marshal new node object")
