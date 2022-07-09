@@ -11,6 +11,9 @@ This is a K8s custom controller to monitor Node health as represented by node-pr
    * Populating the given config map with alerts if they are different than alerts from previous interval
    * Labeling the Node with 'maintenance.box.com/source=npd' if enabled by user
 
+## Flow
+![Alt_text](k8s_automediation.jpeg "Autoremediation flow")
+
 ## Usage
 ```$ ./node-alert-generator -h
 Usage of ./node-alert-generator:
