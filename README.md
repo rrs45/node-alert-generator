@@ -1,4 +1,4 @@
-# box-autoremediation
+# Node alert generator
 This is a K8s custom controller to monitor Node health as represented by node-problem-detector. It does the following:
 1. Extracts node conditions based on following conditions: 
    * Name starts with 'NPD-'
