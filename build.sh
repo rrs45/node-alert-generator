@@ -4,14 +4,15 @@ set -ex
 
 godir=/tmp/go/src/github.com
 
-mkdir -p $godir/box-autoremediation
+mkdir -p $godir/node-alert-generator
+
 export GOPATH=/tmp/go
 
-mv cmd $godir/box-autoremediation/
-mv pkg $godir/box-autoremediation/
-mv go.mod $godir/box-autoremediation/
+mv cmd $godir/node-alert-generator/
+mv pkg $godir/node-alert-generator/
+mv go.mod $godir/node-alert-generator/
 
-cd $godir/box-autoremediation
+cd $godir/node-alert-generator
 mkdir bin
 export GO111MODULE=on
 go get ./...
