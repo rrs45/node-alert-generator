@@ -1,4 +1,4 @@
-FROM box-registry.jfrog.io/jenkins/box-centos7
+FROM centos7
 
 LABEL com.box.name="node-alert-generator"
 
